@@ -132,7 +132,7 @@ export default function InvoicesTab({ dealerId: dealerIdProp, dealer }: Invoices
       ) : (
         <div className="space-y-2">
           {invoices.map(inv => (
-            <InvoiceRow key={inv.id} inv={inv} />
+            <InvoiceRow key={inv.id} inv={inv} router={router} />
           ))}
         </div>
       )}
@@ -164,7 +164,7 @@ function StatPill({
   )
 }
 
-function InvoiceRow({ inv }: { inv: MainInvoice }) {
+function InvoiceRow({ inv, router }: { inv: MainInvoice; router: ReturnType<typeof useRouter> }) {
   const itemCount = inv.stockOuts?.length ?? 0
 
   return (
@@ -218,7 +218,7 @@ function InvoiceRow({ inv }: { inv: MainInvoice }) {
         </div>
 
         <button
-          onClick={() => window.open(`/dashboard/invoices/${inv.id}`, '_blank')}
+          onClick={() => router.push(`/dashboard/invoices/${inv.id}`)}
           title="View invoice"
           className="
             p-2 rounded-lg text-muted-foreground
