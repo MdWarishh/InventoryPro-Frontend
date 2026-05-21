@@ -45,7 +45,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   }, [user?.role, user?.branchId])
 
   useEffect(() => {
-    if (pathname.startsWith('/dashboard/settings')) {
+    const settingsChildPaths = [
+      '/dashboard/settings',
+      '/dashboard/users',
+      '/dashboard/branches',
+      '/dashboard/notifications',
+    ]
+    if (settingsChildPaths.some((p) => pathname.startsWith(p))) {
       setOpenMenus((prev) => ({ ...prev, '/dashboard/settings': true }))
     }
   }, [pathname])
@@ -66,6 +72,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return 0
   }
 
+  // Notifications badge Settings parent pe bhi dikhao agar collapsed ho
+  const getParentBadge = (item: NavItem) => {
+    if (item.children) {
+      return item.children.reduce((acc, c) => acc + getBadgeCount((c as NavItem).badge), 0)
+    }
+    return 0
+  }
+
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname === href
@@ -73,7 +87,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const isParentActive = (item: NavItem) => {
     if (item.children) {
-      return item.children.some((c) => pathname.startsWith(c.href))
+      return item.children.some((c) => pathname === c.href || pathname.startsWith(c.href + '/'))
     }
     return isActive(item.href)
   }
@@ -130,6 +144,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
           // ── Item WITH submenu ──────────────────
           if (hasChildren) {
+            const parentBadge = getParentBadge(item)
             return (
               <div key={item.href} className="mb-0.5">
                 <button
@@ -175,6 +190,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     <div className="pointer-events-none absolute left-full ml-3 z-50 hidden group-hover:flex items-center">
                       <div className="rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg whitespace-nowrap dark:bg-slate-700">
                         {item.label}
+                        {parentBadge > 0 && (
+                          <span className="ml-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px]">
+                            {parentBadge}
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
