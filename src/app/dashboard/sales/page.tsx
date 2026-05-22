@@ -72,31 +72,31 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/40">
+    <div className="min-h-screen bg-gray-50/40 dark:bg-gray-950">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
         {/* ── Page Header ── */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm shadow-indigo-200">
+              <div className="w-9 h-9 bg-indigo-600 dark:bg-indigo-500 rounded-xl flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40">
                 <ShoppingCart size={17} className="text-white" />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">Sales</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-50">Sales</h1>
             </div>
             <p className="text-sm text-muted-foreground pl-12">
               {pagination
                 ? `${pagination.total.toLocaleString('en-IN')} total transactions`
                 : 'Loading...'}
               {isFetching && !isLoading && (
-                <span className="ml-2 text-indigo-500 text-xs font-medium animate-pulse">• syncing</span>
+                <span className="ml-2 text-indigo-500 dark:text-indigo-400 text-xs font-medium animate-pulse">• syncing</span>
               )}
             </p>
           </div>
 
           <Button
             onClick={() => setShowModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 gap-2 h-10 rounded-xl font-semibold"
+            className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40 gap-2 h-10 rounded-xl font-semibold"
           >
             <Plus size={15} />
             <span className="hidden sm:inline">Record Sale</span>
@@ -108,25 +108,25 @@ export default function SalesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
           {/* Revenue Card */}
-          <Card className="sm:col-span-2 border-gray-200 shadow-sm">
+          <Card className="sm:col-span-2 border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
             <CardContent className="p-5 flex items-center gap-5">
-              <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center shrink-0">
-                <TrendingUp size={22} className="text-emerald-600" />
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl flex items-center justify-center shrink-0">
+                <TrendingUp size={22} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                   {isFiltered ? 'Revenue (filtered)' : 'Page Revenue'}
                 </p>
                 <div className="flex items-end gap-3 mt-1">
                   {isLoading ? (
-                    <div className="w-36 h-8 bg-gray-100 rounded-lg animate-pulse" />
+                    <div className="w-36 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
                   ) : (
-                    <p className="text-3xl font-bold text-gray-900 tabular-nums tracking-tight">
+                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-50 tabular-nums tracking-tight">
                       {fmt(totalRevenue)}
                     </p>
                   )}
                   {!isLoading && sales.length > 0 && (
-                    <span className="text-xs text-gray-400 mb-1 font-medium">{sales.length} sales</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 mb-1 font-medium">{sales.length} sales</span>
                   )}
                 </div>
               </div>
@@ -134,17 +134,17 @@ export default function SalesPage() {
           </Card>
 
           {/* Quick Stats */}
-          <Card className="border-gray-200 shadow-sm">
+          <Card className="border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 bg-violet-50 border border-violet-100 rounded-2xl flex items-center justify-center shrink-0">
-                <BarChart3 size={20} className="text-violet-600" />
+              <div className="w-12 h-12 bg-violet-50 dark:bg-violet-900/30 border border-violet-100 dark:border-violet-800/50 rounded-2xl flex items-center justify-center shrink-0">
+                <BarChart3 size={20} className="text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Orders</p>
+                <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Total Orders</p>
                 {isLoading ? (
-                  <div className="w-16 h-7 bg-gray-100 rounded-lg animate-pulse mt-1" />
+                  <div className="w-16 h-7 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-50 mt-1 tabular-nums">
                     {pagination?.total?.toLocaleString('en-IN') ?? '—'}
                   </p>
                 )}
@@ -154,28 +154,28 @@ export default function SalesPage() {
         </div>
 
         {/* ── Filters + Toolbar ── */}
-        <Card className="border-gray-200 shadow-sm">
+        <Card className="border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
           <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
 
               {/* Date Filters */}
               <div className="flex items-end gap-3 flex-1">
                 <div className="flex-1 min-w-0 space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">From</Label>
+                  <Label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">From</Label>
                   <Input
                     type="date"
                     value={startDate}
                     onChange={(e) => handleDateFilter('start', e.target.value)}
-                    className="h-9 text-sm border-gray-200 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400"
+                    className="h-9 text-sm border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400"
                   />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">To</Label>
+                  <Label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">To</Label>
                   <Input
                     type="date"
                     value={endDate}
                     onChange={(e) => handleDateFilter('end', e.target.value)}
-                    className="h-9 text-sm border-gray-200 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400"
+                    className="h-9 text-sm border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400"
                   />
                 </div>
                 {isFiltered && (
@@ -183,7 +183,7 @@ export default function SalesPage() {
                     variant="outline"
                     size="icon"
                     onClick={clearFilters}
-                    className="h-9 w-9 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 shrink-0"
+                    className="h-9 w-9 border-gray-200 dark:border-gray-700 text-gray-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 shrink-0"
                     title="Clear filters"
                   >
                     <X size={13} />
@@ -191,12 +191,12 @@ export default function SalesPage() {
                 )}
               </div>
 
-              <Separator orientation="vertical" className="h-9 hidden sm:block" />
+              <Separator orientation="vertical" className="h-9 hidden sm:block dark:bg-gray-700" />
 
               {/* Right side toolbar */}
               <div className="flex items-center gap-2 shrink-0">
                 {isFiltered && (
-                  <Badge variant="secondary" className="bg-indigo-50 text-indigo-600 border border-indigo-100 font-semibold text-[11px]">
+                  <Badge variant="secondary" className="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60 font-semibold text-[11px]">
                     Filtered
                   </Badge>
                 )}
@@ -205,7 +205,7 @@ export default function SalesPage() {
                   size="sm"
                   onClick={handleDownload}
                   disabled={downloading || isLoading || sales.length === 0}
-                  className="h-9 gap-2 text-sm border-gray-200 text-gray-600 hover:border-gray-300 font-medium"
+                  className="h-9 gap-2 text-sm border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 font-medium"
                 >
                   {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
                   Export Excel
@@ -218,11 +218,11 @@ export default function SalesPage() {
         {/* ── Table ── */}
         <div className="space-y-1">
           <div className="flex items-center gap-2 px-1">
-            <p className="text-sm font-semibold text-gray-700">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               {isFiltered ? 'Filtered Results' : 'All Transactions'}
             </p>
             {isFiltered && (
-              <Badge variant="outline" className="text-[11px] text-indigo-600 border-indigo-200 bg-indigo-50/60 font-semibold">
+              <Badge variant="outline" className="text-[11px] text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/60 dark:bg-indigo-900/30 font-semibold">
                 filtered
               </Badge>
             )}

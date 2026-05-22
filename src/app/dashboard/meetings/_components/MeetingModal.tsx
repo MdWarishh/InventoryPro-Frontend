@@ -15,7 +15,9 @@ const toDatetimeLocal = (iso: string) => {
   if (!iso) return ''
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  // getTimezoneOffset se local time nikalo
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
 }
 
 export function MeetingModal({ open, onClose, onSave, initial, loading }: Props) {
@@ -66,21 +68,24 @@ export function MeetingModal({ open, onClose, onSave, initial, loading }: Props)
   const setParticipant = (i: number, k: keyof ParticipantPayload, v: string) =>
     setParticipants(p => p.map((x, idx) => idx === i ? { ...x, [k]: v } : x))
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    try {
-      const payload: any = {
-        ...form,
-        reminderMinutes: Number(form.reminderMinutes),
-        participants: participants.filter(p => p.externalName || p.externalEmail || p.userId),
-      }
-      if (!initial) delete payload.status
-      await onSave(payload)
-    } catch (e: any) {
-      setError(e?.response?.data?.message || 'Something went wrong')
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError('')
+  try {
+    const payload: any = {
+      ...form,
+      // ✅ datetime-local value ko proper UTC ISO string mein convert karo
+      startTime: form.startTime ? new Date(form.startTime).toISOString() : '',
+      endTime:   form.endTime   ? new Date(form.endTime).toISOString()   : '',
+      reminderMinutes: Number(form.reminderMinutes),
+      participants: participants.filter(p => p.externalName || p.externalEmail || p.userId),
     }
+    if (!initial) delete payload.status
+    await onSave(payload)
+  } catch (e: any) {
+    setError(e?.response?.data?.message || 'Something went wrong')
   }
+}
 
   return (
     <div className="overlay" onClick={onClose}>

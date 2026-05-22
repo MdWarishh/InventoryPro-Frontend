@@ -19,9 +19,9 @@ const fmtDate = (d: string) =>
 // ─── Table Header ─────────────────────────────────────────────────────────────
 function TableHeader() {
   return (
-    <div className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50/60">
+    <div className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40">
       {['Product', 'Qty', 'Price', 'Total', 'Dealer', 'Date'].map((col) => (
-        <span key={col} className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{col}</span>
+        <span key={col} className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{col}</span>
       ))}
     </div>
   )
@@ -36,15 +36,15 @@ function SaleRow({ sale }: { sale: StockHistoryItem }) {
   return (
     <>
       {/* Desktop Row */}
-      <div className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-3.5 items-center border-b border-gray-100 last:border-0 hover:bg-gray-50/70 transition-colors group">
+      <div className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-3.5 items-center border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors group">
 
         {/* Product */}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-indigo-700 transition-colors">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">
             {sale.product.name}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] font-mono text-gray-400">{sale.product.sku}</span>
+            <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">{sale.product.sku}</span>
             {sale.product.category && (
               <span
                 className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
@@ -58,39 +58,39 @@ function SaleRow({ sale }: { sale: StockHistoryItem }) {
 
         {/* Qty */}
         <div>
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-sm font-bold text-gray-700 group-hover:bg-indigo-100 group-hover:text-indigo-700 transition-colors">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/40 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">
             {sale.quantity}
           </span>
         </div>
 
         {/* Price */}
-        <span className="text-sm text-gray-500 tabular-nums">{fmt(sellingPrice)}</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400 tabular-nums">{fmt(sellingPrice)}</span>
 
         {/* Total */}
-        <span className="text-sm font-bold text-gray-900 tabular-nums">{fmt(total)}</span>
+        <span className="text-sm font-bold text-gray-900 dark:text-gray-50 tabular-nums">{fmt(total)}</span>
 
         {/* Dealer */}
         <div>
           {sale.dealer?.name ? (
-            <span className="text-sm text-gray-700 truncate">{sale.dealer.name}</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{sale.dealer.name}</span>
           ) : (
-            <Badge variant="secondary" className="text-[10px] bg-sky-50 text-sky-600 border border-sky-100 font-semibold rounded-full">
+            <Badge variant="secondary" className="text-[10px] bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-800/50 font-semibold rounded-full">
               Direct
             </Badge>
           )}
         </div>
 
         {/* Date */}
-        <span className="text-xs text-gray-400 tabular-nums">{fmtDate(sale.date)}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">{fmtDate(sale.date)}</span>
       </div>
 
       {/* Mobile Card */}
-      <div className="md:hidden px-4 py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50/70 transition-colors">
+      <div className="md:hidden px-4 py-4 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-800 truncate">{sale.product.name}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{sale.product.name}</p>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-[11px] font-mono text-gray-400">{sale.product.sku}</span>
+              <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">{sale.product.sku}</span>
               {sale.product.category && (
                 <span
                   className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
@@ -102,21 +102,21 @@ function SaleRow({ sale }: { sale: StockHistoryItem }) {
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-sm font-bold text-gray-900 tabular-nums">{fmt(total)}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5 tabular-nums">×{sale.quantity} @ {fmt(sellingPrice)}</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-gray-50 tabular-nums">{fmt(total)}</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 tabular-nums">×{sale.quantity} @ {fmt(sellingPrice)}</p>
           </div>
         </div>
-        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100">
+        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-800">
           <div>
             {sale.dealer?.name ? (
-              <span className="text-xs text-gray-600 font-medium">{sale.dealer.name}</span>
+              <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">{sale.dealer.name}</span>
             ) : (
-              <Badge variant="secondary" className="text-[10px] bg-sky-50 text-sky-600 border border-sky-100 font-semibold rounded-full">
+              <Badge variant="secondary" className="text-[10px] bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-800/50 font-semibold rounded-full">
                 Direct Sale
               </Badge>
             )}
           </div>
-          <span className="text-[11px] text-gray-400 tabular-nums">{fmtDate(sale.date)}</span>
+          <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{fmtDate(sale.date)}</span>
         </div>
       </div>
     </>
@@ -128,31 +128,31 @@ function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-4 items-center border-b border-gray-100">
+        <div key={i} className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-4 items-center border-b border-gray-100 dark:border-gray-800">
           <div className="space-y-2">
-            <Skeleton className="w-40 h-3.5 rounded" />
-            <Skeleton className="w-24 h-2.5 rounded" />
+            <Skeleton className="w-40 h-3.5 rounded dark:bg-gray-800" />
+            <Skeleton className="w-24 h-2.5 rounded dark:bg-gray-800" />
           </div>
           {[0, 1, 2, 3, 4].map((j) => (
-            <Skeleton key={j} className="w-16 h-3 rounded" />
+            <Skeleton key={j} className="w-16 h-3 rounded dark:bg-gray-800" />
           ))}
         </div>
       ))}
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={`m${i}`} className="md:hidden px-4 py-4 border-b border-gray-100">
+        <div key={`m${i}`} className="md:hidden px-4 py-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex justify-between gap-3">
             <div className="space-y-2 flex-1">
-              <Skeleton className="w-40 h-3.5 rounded" />
-              <Skeleton className="w-24 h-2.5 rounded" />
+              <Skeleton className="w-40 h-3.5 rounded dark:bg-gray-800" />
+              <Skeleton className="w-24 h-2.5 rounded dark:bg-gray-800" />
             </div>
             <div className="space-y-2 flex flex-col items-end">
-              <Skeleton className="w-20 h-3.5 rounded" />
-              <Skeleton className="w-14 h-2.5 rounded" />
+              <Skeleton className="w-20 h-3.5 rounded dark:bg-gray-800" />
+              <Skeleton className="w-14 h-2.5 rounded dark:bg-gray-800" />
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-gray-100 flex justify-between">
-            <Skeleton className="w-16 h-2.5 rounded" />
-            <Skeleton className="w-24 h-2.5 rounded" />
+          <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-800 flex justify-between">
+            <Skeleton className="w-16 h-2.5 rounded dark:bg-gray-800" />
+            <Skeleton className="w-24 h-2.5 rounded dark:bg-gray-800" />
           </div>
         </div>
       ))}
@@ -181,12 +181,12 @@ function Pagination({ page, totalPages, total, limit, onPageChange }: Pagination
   const to = Math.min(page * limit, total)
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-gray-100 bg-gray-50/40">
-      <p className="text-xs text-gray-400 order-2 sm:order-1">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-800/30">
+      <p className="text-xs text-gray-400 dark:text-gray-500 order-2 sm:order-1">
         Showing{' '}
-        <span className="font-semibold text-gray-600 tabular-nums">{from}–{to}</span>
+        <span className="font-semibold text-gray-600 dark:text-gray-300 tabular-nums">{from}–{to}</span>
         {' '}of{' '}
-        <span className="font-semibold text-gray-600 tabular-nums">{total}</span>
+        <span className="font-semibold text-gray-600 dark:text-gray-300 tabular-nums">{total}</span>
         {' '}transactions
       </p>
       <div className="flex items-center gap-1 order-1 sm:order-2">
@@ -195,13 +195,13 @@ function Pagination({ page, totalPages, total, limit, onPageChange }: Pagination
           size="icon"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page === 1}
-          className="w-7 h-7 rounded-lg border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-white disabled:opacity-40"
+          className="w-7 h-7 rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 text-gray-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-gray-700 disabled:opacity-40"
         >
           <ChevronLeft size={13} />
         </Button>
         {pages.map((p, i) =>
           p === '...' ? (
-            <span key={`e${i}`} className="text-gray-300 text-xs px-1">…</span>
+            <span key={`e${i}`} className="text-gray-300 dark:text-gray-600 text-xs px-1">…</span>
           ) : (
             <Button
               key={p}
@@ -211,8 +211,8 @@ function Pagination({ page, totalPages, total, limit, onPageChange }: Pagination
               className={cn(
                 'w-7 h-7 rounded-lg text-xs font-semibold transition-all',
                 page === p
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 border-indigo-600 shadow-sm shadow-indigo-200'
-                  : 'border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-white'
+                  ? 'bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600 border-indigo-600 dark:border-indigo-500 shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40'
+                  : 'border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-gray-700'
               )}
             >
               {p}
@@ -224,7 +224,7 @@ function Pagination({ page, totalPages, total, limit, onPageChange }: Pagination
           size="icon"
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          className="w-7 h-7 rounded-lg border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-white disabled:opacity-40"
+          className="w-7 h-7 rounded-lg border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 text-gray-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-gray-700 disabled:opacity-40"
         >
           <ChevronRight size={13} />
         </Button>
@@ -243,18 +243,18 @@ interface SalesTableProps {
 
 export function SalesTable({ sales, isLoading, page, totalPages, total, limit, onPageChange }: SalesTableProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
       <TableHeader />
       {isLoading ? (
         <SkeletonRows />
       ) : sales.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center">
-            <ShoppingCart size={26} className="text-gray-300" />
+          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center">
+            <ShoppingCart size={26} className="text-gray-300 dark:text-gray-600" />
           </div>
           <div className="text-center space-y-1">
-            <p className="text-sm font-semibold text-gray-500">No sales recorded yet</p>
-            <p className="text-xs text-gray-400">Record your first sale to see it here</p>
+            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">No sales recorded yet</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Record your first sale to see it here</p>
           </div>
         </div>
       ) : (
