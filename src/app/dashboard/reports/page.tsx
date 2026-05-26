@@ -9,17 +9,14 @@ import InventoryReport from './_components/InventoryReport'
 import BranchesReport from './_components/BranchesReport'
 import GSTReport from './_components/GSTReport'
 
-// Replace with your actual auth hook
 const useUser = () => ({
   role: 'SUPER_ADMIN' as const,
   branchId: undefined as string | undefined,
 })
 
-// Replace with actual branches API call
 const useBranches = () => {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
   useEffect(() => {
-    // fetch('/api/branches').then(r => r.json()).then(d => setBranches(d.data))
     setBranches([
       { id: 'b1', name: 'Main Branch' },
       { id: 'b2', name: 'Downtown' },
@@ -108,13 +105,13 @@ export default function ReportsPage() {
   const visibleTabs = TABS.filter(t => !t.superAdminOnly || isSuperAdmin)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Page Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
         <div className="max-w-screen-xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Reports</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">Reports</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               {isSuperAdmin ? 'Super Admin — All Branches' : 'Branch Analytics'}
             </p>
           </div>
@@ -123,13 +120,13 @@ export default function ReportsPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
             </span>
-            <span className="text-xs text-gray-500 font-medium">Live Data</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Live Data</span>
           </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-gray-200 px-6">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6">
         <div className="max-w-screen-xl mx-auto flex gap-1 overflow-x-auto">
           {visibleTabs.map(tab => (
             <button
@@ -138,12 +135,12 @@ export default function ReportsPage() {
               className={`
                 flex items-center gap-2 px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all
                 ${activeTab === tab.id
-                  ? 'border-gray-900 text-gray-900'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-50'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
                 }
               `}
             >
-              <span className={activeTab === tab.id ? 'text-gray-900' : 'text-gray-400'}>
+              <span className={activeTab === tab.id ? 'text-gray-900 dark:text-gray-50' : 'text-gray-400 dark:text-gray-500'}>
                 {tab.icon}
               </span>
               {tab.label}

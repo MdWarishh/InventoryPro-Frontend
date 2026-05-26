@@ -27,7 +27,6 @@ export default function UsersPage() {
   const canAdmin = isBranchAdmin || isSuperAdmin
   const qc = useQueryClient()
 
-  // ── Filters ──
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [role, setRole] = useState('')
@@ -35,7 +34,6 @@ export default function UsersPage() {
   const [page, setPage] = useState(1)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
 
-  // ── Modal ──
   const [modal, setModal] = useState<ModalState>(null)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
 
@@ -45,7 +43,6 @@ export default function UsersPage() {
     debounceRef.current = setTimeout(() => { setDebouncedSearch(val); setPage(1) }, 400)
   }, [])
 
-  // ── Queries ──
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['users', page, debouncedSearch, role, branchId],
     queryFn: () => usersService.getAll({
@@ -62,11 +59,10 @@ export default function UsersPage() {
     queryFn: () => branchesService.getAll(),
   })
 
- const branches: Branch[] = Array.isArray(branchRaw) ? branchRaw
-  : (branchRaw as any)?.branches
-  ?? (branchRaw as any)?.data ?? []
+  const branches: Branch[] = Array.isArray(branchRaw) ? branchRaw
+    : (branchRaw as any)?.branches
+    ?? (branchRaw as any)?.data ?? []
 
-  // ── Delete mutation ──
   const deleteMut = useMutation({
     mutationFn: (id: string) => usersService.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setDeleteTarget(null) },
@@ -76,78 +72,80 @@ export default function UsersPage() {
   const pagination = data?.pagination
 
   return (
-    <div className="p-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Users size={22} className="text-indigo-600" />
-            Users
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {pagination ? `${pagination.total} users total` : 'Loading...'}
-            {isFetching && !isLoading && (
-              <span className="ml-2 text-indigo-400 text-xs animate-pulse">Refreshing...</span>
-            )}
-          </p>
+    <div className="min-h-screen bg-gray-50/40 dark:bg-gray-950">
+      <div className="p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50 flex items-center gap-2">
+              <Users size={22} className="text-indigo-600 dark:text-indigo-400" />
+              Users
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              {pagination ? `${pagination.total} users total` : 'Loading...'}
+              {isFetching && !isLoading && (
+                <span className="ml-2 text-indigo-400 dark:text-indigo-500 text-xs animate-pulse">Refreshing...</span>
+              )}
+            </p>
+          </div>
+          {canAdmin && (
+            <button
+              onClick={() => setModal({ type: 'create' })}
+              className="flex items-center gap-2 h-10 px-5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40"
+            >
+              <Plus size={16} />
+              Add User
+            </button>
+          )}
         </div>
-        {canAdmin && (
-          <button
-            onClick={() => setModal({ type: 'create' })}
-            className="flex items-center gap-2 h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm"
-          >
-            <Plus size={16} />
-            Add User
-          </button>
+
+        {/* Filters */}
+        <UserFilters
+          search={search} onSearch={handleSearch}
+          role={role} onRole={(v) => { setRole(v); setPage(1) }}
+          branchId={branchId} onBranch={(v) => { setBranchId(v); setPage(1) }}
+          branches={branches}
+          isSuperAdmin={isSuperAdmin}
+        />
+
+        {/* Table */}
+        <UserTable
+          users={users}
+          isLoading={isLoading}
+          canAdmin={canAdmin}
+          isSuperAdmin={isSuperAdmin}
+          currentUserId={me?.id ?? ''}
+          onEdit={(u) => setModal({ type: 'edit', user: u })}
+          onDelete={(u) => setDeleteTarget(u)}
+          onResetPassword={(u) => setModal({ type: 'reset', user: u })}
+          page={page}
+          totalPages={pagination?.pages ?? 1}
+          total={pagination?.total ?? 0}
+          limit={LIMIT}
+          onPageChange={setPage}
+        />
+
+        {/* Modals */}
+        {modal?.type === 'create' && (
+          <CreateUserModal branches={branches} onClose={() => setModal(null)} />
+        )}
+        {modal?.type === 'edit' && (
+          <EditUserModal user={modal.user} branches={branches} onClose={() => setModal(null)} />
+        )}
+        {modal?.type === 'reset' && (
+          <ResetPasswordModal user={modal.user} onClose={() => setModal(null)} />
+        )}
+
+        {/* Delete confirm */}
+        {deleteTarget && (
+          <DeleteUserConfirm
+            userName={deleteTarget.name}
+            isLoading={deleteMut.isPending}
+            onConfirm={() => deleteMut.mutate(deleteTarget.id)}
+            onCancel={() => setDeleteTarget(null)}
+          />
         )}
       </div>
-
-      {/* Filters */}
-      <UserFilters
-        search={search} onSearch={handleSearch}
-        role={role} onRole={(v) => { setRole(v); setPage(1) }}
-        branchId={branchId} onBranch={(v) => { setBranchId(v); setPage(1) }}
-        branches={branches}
-        isSuperAdmin={isSuperAdmin}
-      />
-
-      {/* Table */}
-      <UserTable
-        users={users}
-        isLoading={isLoading}
-        canAdmin={canAdmin}
-        isSuperAdmin={isSuperAdmin}
-        currentUserId={me?.id ?? ''}
-        onEdit={(u) => setModal({ type: 'edit', user: u })}
-        onDelete={(u) => setDeleteTarget(u)}
-        onResetPassword={(u) => setModal({ type: 'reset', user: u })}
-        page={page}
-        totalPages={pagination?.pages ?? 1}
-        total={pagination?.total ?? 0}
-        limit={LIMIT}
-        onPageChange={setPage}
-      />
-
-      {/* Modals */}
-      {modal?.type === 'create' && (
-        <CreateUserModal branches={branches} onClose={() => setModal(null)} />
-      )}
-      {modal?.type === 'edit' && (
-        <EditUserModal user={modal.user} branches={branches} onClose={() => setModal(null)} />
-      )}
-      {modal?.type === 'reset' && (
-        <ResetPasswordModal user={modal.user} onClose={() => setModal(null)} />
-      )}
-
-      {/* Delete confirm */}
-      {deleteTarget && (
-        <DeleteUserConfirm
-          userName={deleteTarget.name}
-          isLoading={deleteMut.isPending}
-          onConfirm={() => deleteMut.mutate(deleteTarget.id)}
-          onCancel={() => setDeleteTarget(null)}
-        />
-      )}
     </div>
   )
 }

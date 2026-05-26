@@ -47,17 +47,17 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
       />
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
+        <div className="flex items-center justify-center py-16 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
           <div className="text-center">
-            <svg className="animate-spin w-8 h-8 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin w-8 h-8 text-gray-400 dark:text-gray-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-sm text-gray-500">Loading GST data...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading GST data...</p>
           </div>
         </div>
       ) : !data ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-gray-200 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500">
           <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" className="mb-3 opacity-40">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -66,26 +66,28 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
         </div>
       ) : (
         <>
-          {/* Summary View */}
+          {/* ── Summary View ── */}
           {isSummary && summary && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-5">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Output Tax (Sales)</p>
-                  <p className="text-2xl font-semibold text-blue-700 mt-1">{fmt(summary.outputTax)}</p>
+                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Output Tax (Sales)</p>
+                  <p className="text-2xl font-semibold text-blue-700 dark:text-blue-400 mt-1">{fmt(summary.outputTax)}</p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-5">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Input Tax (Purchase)</p>
-                  <p className="text-2xl font-semibold text-gray-900 mt-1">{fmt(summary.inputTax)}</p>
+                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Input Tax (Purchase)</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-50 mt-1">{fmt(summary.inputTax)}</p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-200 p-5">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Net GST Payable</p>
+                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Net GST Payable</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className={`text-2xl font-semibold ${summary.netPayable >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <p className={`text-2xl font-semibold ${summary.netPayable >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                       {fmt(Math.abs(summary.netPayable))}
                     </p>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                      summary.netPayable >= 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                      summary.netPayable >= 0
+                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                        : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                     }`}>
                       {summary.netPayable >= 0 ? 'Payable' : 'Credit'}
                     </span>
@@ -94,32 +96,32 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
               </div>
 
               {summary.byRate.length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="px-5 py-4 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-900">GST Breakdown by Rate</h3>
+                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">GST Breakdown by Rate</h3>
                   </div>
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50">
+                      <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                         {['GST Rate', 'Taxable Value', 'CGST', 'SGST', 'Total Tax'].map((h, i) => (
-                          <th key={h} className={`px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${i === 0 ? 'text-left' : 'text-right'}`}>
+                          <th key={h} className={`px-5 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i === 0 ? 'text-left' : 'text-right'}`}>
                             {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                       {summary.byRate.map(r => (
-                        <tr key={r.rate} className="hover:bg-gray-50 transition-colors">
+                        <tr key={r.rate} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                           <td className="px-5 py-3.5">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-50 text-violet-700">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400">
                               {r.rate}%
                             </span>
                           </td>
-                          <td className="px-5 py-3.5 text-sm text-gray-600 text-right">{fmt(r.taxableValue)}</td>
-                          <td className="px-5 py-3.5 text-sm text-gray-600 text-right">{fmt(r.cgst)}</td>
-                          <td className="px-5 py-3.5 text-sm text-gray-600 text-right">{fmt(r.sgst)}</td>
-                          <td className="px-5 py-3.5 text-sm font-semibold text-gray-900 text-right">{fmt(r.totalTax)}</td>
+                          <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(r.taxableValue)}</td>
+                          <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(r.cgst)}</td>
+                          <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(r.sgst)}</td>
+                          <td className="px-5 py-3.5 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">{fmt(r.totalTax)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -129,14 +131,14 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
             </>
           )}
 
-          {/* GSTR-1 / GSTR-2 Table */}
+          {/* ── GSTR-1 / GSTR-2 Table ── */}
           {!isSummary && (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {isGSTR1 ? 'GSTR-1: Outward Supplies' : 'GSTR-2: Inward Supplies'}
                 </h3>
-                <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full font-medium">
+                <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full font-medium">
                   {tableItems.length} records
                 </span>
               </div>
@@ -145,70 +147,82 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
                 {isGSTR1 ? (
                   <table className="w-full min-w-[1000px]">
                     <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50">
+                      <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                         {['Invoice No', 'Date', 'Customer', 'GSTIN', 'HSN', 'Product', 'Qty', 'Taxable', 'Rate', 'CGST', 'SGST', 'Total Tax', 'Invoice Value'].map((h, i) => (
-                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${i >= 6 ? 'text-right' : 'text-left'}`}>
+                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i >= 6 ? 'text-right' : 'text-left'}`}>
                             {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                       {(paginated as GSTR1Item[]).map((item, i) => (
-                        <tr key={i} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 text-xs font-mono text-blue-600">{item.invoiceNumber}</td>
-                          <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDate(item.invoiceDate)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{item.customerName}</td>
-                          <td className="px-4 py-3 text-xs font-mono text-gray-500">{item.customerGST}</td>
-                          <td className="px-4 py-3 text-xs font-mono text-gray-600">{item.hsnCode}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{item.productName}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 text-right">{item.quantity}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">{fmt(item.taxableValue)}</td>
+                        <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                          <td className="px-4 py-3 text-xs font-mono text-blue-600 dark:text-blue-400">{item.invoiceNumber}</td>
+                          <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{fmtDate(item.invoiceDate)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.customerName}</td>
+                          <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400">{item.customerGST}</td>
+                          <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400">{item.hsnCode}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.productName}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 text-right">{item.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.taxableValue)}</td>
                           <td className="px-4 py-3 text-right">
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 text-violet-700 rounded-full">{item.gstRate}%</span>
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full">
+                              {item.gstRate}%
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">{fmt(item.cgst)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">{fmt(item.sgst)}</td>
-                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{fmt(item.totalTax)}</td>
-                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{fmt(item.invoiceValue)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.cgst)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.sgst)}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">{fmt(item.totalTax)}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">{fmt(item.invoiceValue)}</td>
                         </tr>
                       ))}
                       {paginated.length === 0 && (
-                        <tr><td colSpan={13} className="px-5 py-12 text-center text-sm text-gray-400">No records found</td></tr>
+                        <tr>
+                          <td colSpan={13} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
+                            No records found
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
                 ) : (
                   <table className="w-full min-w-[800px]">
                     <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50">
+                      <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                         {['Date', 'Dealer', 'GSTIN', 'HSN', 'Product', 'Qty', 'Taxable', 'Rate', 'CGST', 'SGST', 'Total Tax'].map((h, i) => (
-                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${i >= 5 ? 'text-right' : 'text-left'}`}>
+                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i >= 5 ? 'text-right' : 'text-left'}`}>
                             {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                       {(paginated as GSTR2Item[]).map((item, i) => (
-                        <tr key={i} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDate(item.date)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{item.dealerName}</td>
-                          <td className="px-4 py-3 text-xs font-mono text-gray-500">{item.dealerGST}</td>
-                          <td className="px-4 py-3 text-xs font-mono text-gray-600">{item.hsnCode}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{item.productName}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 text-right">{item.quantity}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">{fmt(item.taxableValue)}</td>
+                        <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                          <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{fmtDate(item.date)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.dealerName}</td>
+                          <td className="px-4 py-3 text-xs font-mono text-gray-500 dark:text-gray-400">{item.dealerGST}</td>
+                          <td className="px-4 py-3 text-xs font-mono text-gray-600 dark:text-gray-400">{item.hsnCode}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.productName}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 text-right">{item.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.taxableValue)}</td>
                           <td className="px-4 py-3 text-right">
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 text-violet-700 rounded-full">{item.gstRate}%</span>
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full">
+                              {item.gstRate}%
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">{fmt(item.cgst)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 text-right">{fmt(item.sgst)}</td>
-                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{fmt(item.totalTax)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.cgst)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.sgst)}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">{fmt(item.totalTax)}</td>
                         </tr>
                       ))}
                       {paginated.length === 0 && (
-                        <tr><td colSpan={11} className="px-5 py-12 text-center text-sm text-gray-400">No records found</td></tr>
+                        <tr>
+                          <td colSpan={11} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
+                            No records found
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
@@ -216,21 +230,21 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
               </div>
 
               {totalPages > 1 && (
-                <div className="px-5 py-3.5 border-t border-gray-100 flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
+                <div className="px-5 py-3.5 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, tableItems.length)} of {tableItems.length}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       disabled={page === 1}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >‹</button>
-                    <span className="text-sm text-gray-600">{page} / {totalPages}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{page} / {totalPages}</span>
                     <button
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >›</button>
                   </div>
                 </div>
