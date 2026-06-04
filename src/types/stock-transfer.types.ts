@@ -8,6 +8,7 @@ export interface Product {
   id: string
   name: string
   sku: string
+  brand?: string
   hasSerialNumbers: boolean
   minStockAlert: number
   category?: { id: string; name: string; color: string }
@@ -57,6 +58,16 @@ export interface StockInPayload {
   serialNumbers?: string[]
 }
 
+export interface UpdateStockInPayload {
+  quantity: number
+  purchasePrice: number
+  dealerId?: string
+  sourceNote?: string
+  referenceNo?: string
+  date?: string
+  serialNumbers?: string[]
+}
+
 export interface StockInRecord {
   id: string
   productId: string
@@ -66,7 +77,7 @@ export interface StockInRecord {
   date: string
   referenceNo?: string
   sourceNote?: string
-  product?: { id: string; name: string; sku: string }
+  product?: { id: string; name: string; sku: string; brand?: string }
   branch?: { id: string; name: string }
   dealer?: { id: string; name: string }
   serialNumbers?: SerialNumber[]
@@ -76,6 +87,19 @@ export interface StockInRecord {
 export interface StockOutPayload {
   productId: string
   branchId: string
+  quantity: number
+  sellingPrice: number
+  customerName?: string
+  customerPhone?: string
+  customerEmail?: string
+  customerAddress?: string
+  serialNumberIds?: string[]
+  invoiceId?: string
+  notes?: string
+  date?: string
+}
+
+export interface UpdateStockOutPayload {
   quantity: number
   sellingPrice: number
   customerName?: string
@@ -98,7 +122,7 @@ export interface StockOutRecord {
   customerName?: string
   customerPhone?: string
   notes?: string
-  product?: { id: string; name: string; sku: string }
+  product?: { id: string; name: string; sku: string; brand?: string }
   branch?: { id: string; name: string }
   invoice?: { id: string; invoiceNumber: string }
   serialNumbers?: SerialNumber[]

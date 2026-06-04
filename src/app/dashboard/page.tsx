@@ -10,8 +10,10 @@ import {
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
+  BarChart, Bar,
 } from 'recharts'
 import { reportsService } from '@/services/reports.service'
+import { productsService } from '@/services/products.service'
 import { categoriesService } from '@/services/categories.service'
 import { dealersService } from '@/services/dealers.service'
 import { useAuth } from '@/hooks/useAuth'
@@ -137,6 +139,12 @@ export default function DashboardPage() {
     staleTime: 10 * 60 * 1000,
   })
 
+  const { data: allProducts, isLoading: brandsLoading } = useQuery({
+    queryKey: ['products-brand-chart'],
+    queryFn: () => productsService.getAll({ limit: 500 }),
+    staleTime: 5 * 60 * 1000,
+  })
+
   const { data: lowStockData, isLoading: lowStockLoading } = useQuery({
     queryKey: ['low-stock-dashboard'],
     queryFn: () => reportsService.getLowStock(),
@@ -177,6 +185,27 @@ export default function DashboardPage() {
   }, [salesReport])
 
   const lowStockList = Array.isArray(lowStockData) ? lowStockData : []
+
+  const brandChartData = useMemo(() => {
+    const products = allProducts?.products ?? []
+    const map: Record<string, number> = {}
+    products.forEach((p: any) => {
+      const brand = p.brand || 'Unknown'
+      map[brand] = (map[brand] || 0) + 1
+    })
+    return Object.entries(map)
+      .map(([brand, count]) => ({ brand, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+  }, [allProducts])
+
+  const totalStockValue = useMemo(() => {
+    const products = allProducts?.products ?? []
+    return products.reduce((sum: number, p: any) => {
+      const stock = (p.productStocks ?? []).reduce((s: number, ps: any) => s + (ps.currentStock ?? 0), 0)
+      return sum + stock * (p.purchasePrice ?? 0)
+    }, 0)
+  }, [allProducts])
 
   // ── Greeting ──────────────────────────────────────────────────────────────
   const hour = new Date().getHours()
@@ -257,7 +286,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Mini Stats Strip ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           {
             label: "Today's Revenue",
@@ -283,6 +312,15 @@ export default function DashboardPage() {
             icon: <BarChart2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
             valueColor: 'text-emerald-600 dark:text-emerald-400',
           },
+          {
+            label: 'Total Stock Value',
+            value: fmtINR(totalStockValue),
+            sub: 'purchase price × stock',
+            iconBg: 'bg-violet-100 dark:bg-violet-950/40',
+            icon: <Boxes className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />,
+            valueColor: 'text-violet-600 dark:text-violet-400',
+            loading: brandsLoading,
+          },
         ].map((item) => (
           <Card key={item.label} className="hover:shadow-sm transition-shadow">
             <CardContent className="p-4">
@@ -292,7 +330,7 @@ export default function DashboardPage() {
                   {item.icon}
                 </div>
               </div>
-              {statsLoading
+              {(item.loading ?? statsLoading)
                 ? <Skeleton className="h-6 w-20 mt-1" />
                 : <p className={cn('text-lg font-black tabular-nums', item.valueColor)}>{item.value}</p>
               }
@@ -594,6 +632,52 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Brand / Manufacturer Chart */}
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3 border-b">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <BarChart2 className="w-3.5 h-3.5 text-violet-500" />
+                Products by Brand / Manufacturer
+              </CardTitle>
+              <CardDescription className="text-xs mt-0.5">Kis company ke kitne products hain</CardDescription>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {brandChartData.length} brands
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {brandsLoading ? (
+            <Skeleton className="h-56 w-full rounded-xl" />
+          ) : brandChartData.length === 0 ? (
+            <div className="h-56 flex flex-col items-center justify-center text-muted-foreground gap-2">
+              <Package className="w-8 h-8 opacity-20" />
+              <p className="text-sm">No brand data yet &mdash; add brand while creating products</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(220, brandChartData.length * 36)}>
+              <BarChart data={brandChartData} layout="vertical" margin={{ top: 4, right: 24, left: -10, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="brand" width={100} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))', fontWeight: 500 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', fontSize: 12 }}
+                  formatter={(v: any) => [`${v} products`, 'Count']}
+                />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={28}>
+                  {brandChartData.map((_: any, i: number) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
     </div>
   )
 }

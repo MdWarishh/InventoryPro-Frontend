@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Download, ShoppingCart, TrendingUp, Loader2, X, BarChart3 } from 'lucide-react'
+import {
+  Plus, Download, ShoppingCart, TrendingUp, Loader2, X,
+  BarChart3, Package, Layers, ArrowUpRight,
+} from 'lucide-react'
 import { salesService } from '@/services/sales.service'
-import { getStockHistory } from '@/services/stock.service'
-import { useAuth } from '@/hooks/useAuth'
 import { SalesTable } from './_components/SalesTable'
 import { RecordSaleModal } from './_components/RecordSaleModal'
 import { Button } from '@/components/ui/button'
@@ -14,202 +15,412 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  Treemap, Cell,
+} from 'recharts'
 
 const LIMIT = 20
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
-export default function SalesPage() {
-  const { isBranchAdmin, isSuperAdmin } = useAuth()
+const fmtK = (n: number) => {
+  if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(1)}Cr`
+  if (n >= 100_000) return `₹${(n / 100_000).toFixed(1)}L`
+  if (n >= 1_000) return `₹${(n / 1_000).toFixed(0)}K`
+  return `₹${n}`
+}
 
+// ── Treemap colors ────────────────────────────────────────────────────────────
+const TREEMAP_COLORS = [
+  '#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd',
+  '#818cf8', '#4f46e5', '#7c3aed', '#9333ea',
+  '#a855f7', '#d946ef',
+]
+
+// ── Custom Tooltip for bar chart ──────────────────────────────────────────────
+const BarTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-xl text-sm">
+      <p className="font-semibold text-foreground mb-1">{label}</p>
+      <p className="text-emerald-600 dark:text-emerald-400 font-bold">{fmt(payload[0]?.value ?? 0)}</p>
+      {payload[0]?.payload?.transactions != null && (
+        <p className="text-muted-foreground text-xs mt-0.5">{payload[0].payload.transactions} transactions</p>
+      )}
+    </div>
+  )
+}
+
+// ── Custom Treemap cell ───────────────────────────────────────────────────────
+const TreemapContent = ({ x, y, width, height, name, revenue, index }: any) => {
+  if (width < 30 || height < 20) return null
+  const color = TREEMAP_COLORS[index % TREEMAP_COLORS.length]
+  const showLabel = width > 60 && height > 35
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} fill={color} rx={4} stroke="white" strokeWidth={2} />
+      {showLabel && (
+        <>
+          <text x={x + 10} y={y + 20} fill="white" fontSize={11} fontWeight={600} className="font-sans">
+            {name?.length > 14 ? name.slice(0, 13) + '…' : name}
+          </text>
+          {height > 50 && (
+            <text x={x + 10} y={y + 35} fill="rgba(255,255,255,0.8)" fontSize={10}>
+              {fmtK(revenue)}
+            </text>
+          )}
+        </>
+      )}
+    </g>
+  )
+}
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+function StatCard({
+  label, value, sub, icon: Icon, color, loading,
+}: {
+  label: string; value: string; sub?: string
+  icon: any; color: string; loading: boolean
+}) {
+  return (
+    <Card className="border-border shadow-sm bg-card">
+      <CardContent className="p-5 flex items-center gap-4">
+        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${color}`}>
+          <Icon size={20} className="text-white" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest truncate">{label}</p>
+          {loading
+            ? <Skeleton className="h-7 w-28 mt-1" />
+            : <p className="text-2xl font-bold text-foreground tabular-nums mt-0.5">{value}</p>
+          }
+          {sub && !loading && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+export default function SalesPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [page, setPage] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [treemapView, setTreemapView] = useState<'products' | 'branches'>('products')
 
-  const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['sales', page, startDate, endDate],
-    queryFn: () =>
-      getStockHistory({
-        type: 'out',
-        page,
-        limit: LIMIT,
-      }),
+  const isFiltered = !!(startDate || endDate)
+
+  // ── Queries ────────────────────────────────────────────────────────────────
+  const { data: summaryData, isLoading: summaryLoading } = useQuery({
+    queryKey: ['sales-summary', startDate, endDate],
+    queryFn: () => salesService.getSummary({
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    }),
+  })
+
+  const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
+    queryKey: ['sales-monthly'],
+    queryFn: () => salesService.getMonthlyRevenue({ months: 6 }),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: yearlyData, isLoading: yearlyLoading } = useQuery({
+    queryKey: ['sales-yearly'],
+    queryFn: () => salesService.getYearlyRevenue({ years: 3 }),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: breakdownData, isLoading: breakdownLoading } = useQuery({
+    queryKey: ['sales-breakdown', startDate, endDate],
+    queryFn: () => salesService.getBreakdown({
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    }),
+  })
+
+  const { data: listData, isLoading: listLoading, isFetching: listFetching } = useQuery({
+    queryKey: ['sales-list', page, startDate, endDate],
+    queryFn: () => salesService.getAll({ page, limit: LIMIT, startDate: startDate || undefined, endDate: endDate || undefined }),
     placeholderData: (prev) => prev,
   })
 
-  const sales = data?.items ?? []
-  const pagination = data?.pagination
+  const sales = listData?.stockOuts ?? []
+  const pagination = listData?.pagination
 
-  const totalRevenue = sales.reduce((sum, s) => sum + (s.sellingPrice ?? 0) * s.quantity, 0)
-  const isFiltered = !!(startDate || endDate)
-
-  const handleDownload = async () => {
-    setDownloading(true)
-    try {
-      await salesService.downloadExcel({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      })
-    } catch (e) {
-      console.error('Download failed', e)
-    } finally {
-      setDownloading(false)
-    }
-  }
+  const summary = summaryData ?? { totalRevenue: 0, totalTransactions: 0, totalUnits: 0, avgOrderValue: 0 }
+  const monthly = monthlyData ?? []
+  const yearly = yearlyData ?? []
+  const treemapItems = treemapView === 'products'
+    ? (breakdownData?.topProducts ?? [])
+    : (breakdownData?.topBranches ?? [])
 
   const handleDateFilter = (field: 'start' | 'end', val: string) => {
     field === 'start' ? setStartDate(val) : setEndDate(val)
     setPage(1)
   }
 
-  const clearFilters = () => {
-    setStartDate('')
-    setEndDate('')
-    setPage(1)
+  const clearFilters = () => { setStartDate(''); setEndDate(''); setPage(1) }
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      await salesService.downloadExcel({ startDate: startDate || undefined, endDate: endDate || undefined })
+    } catch (e) { console.error(e) }
+    finally { setDownloading(false) }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/40 dark:bg-gray-950">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
-        {/* ── Page Header ── */}
+        {/* ── Header ── */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-indigo-600 dark:bg-indigo-500 rounded-xl flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40">
+              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40">
                 <ShoppingCart size={17} className="text-white" />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-50">Sales</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Sales</h1>
             </div>
             <p className="text-sm text-muted-foreground pl-12">
               {pagination
                 ? `${pagination.total.toLocaleString('en-IN')} total transactions`
-                : 'Loading...'}
-              {isFetching && !isLoading && (
-                <span className="ml-2 text-indigo-500 dark:text-indigo-400 text-xs font-medium animate-pulse">• syncing</span>
+                : 'Loading…'}
+              {listFetching && !listLoading && (
+                <span className="ml-2 text-indigo-500 text-xs font-medium animate-pulse">• syncing</span>
               )}
             </p>
           </div>
 
-          <Button
-            onClick={() => setShowModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40 gap-2 h-10 rounded-xl font-semibold"
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">Record Sale</span>
-            <span className="sm:hidden">New</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              disabled={downloading || listLoading || sales.length === 0}
+              className="h-9 gap-2 text-sm font-medium"
+            >
+              {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+            <Button
+              onClick={() => setShowModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 h-9 rounded-xl font-semibold shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40"
+            >
+              <Plus size={15} />
+              <span className="hidden sm:inline">Record Sale</span>
+              <span className="sm:hidden">New</span>
+            </Button>
+          </div>
         </div>
 
-        {/* ── Stats Row ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* ── 4 Stat Cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            label="Total Revenue"
+            value={fmtK(summary.totalRevenue)}
+            sub={isFiltered ? 'filtered period' : 'all time'}
+            icon={TrendingUp}
+            color="bg-emerald-500"
+            loading={summaryLoading}
+          />
+          <StatCard
+            label="Transactions"
+            value={summary.totalTransactions.toLocaleString('en-IN')}
+            icon={ShoppingCart}
+            color="bg-indigo-500"
+            loading={summaryLoading}
+          />
+          <StatCard
+            label="Units Sold"
+            value={summary.totalUnits.toLocaleString('en-IN')}
+            icon={Package}
+            color="bg-violet-500"
+            loading={summaryLoading}
+          />
+          <StatCard
+            label="Avg Order Value"
+            value={fmtK(summary.avgOrderValue)}
+            icon={BarChart3}
+            color="bg-rose-500"
+            loading={summaryLoading}
+          />
+        </div>
 
-          {/* Revenue Card */}
-          <Card className="sm:col-span-2 border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
-            <CardContent className="p-5 flex items-center gap-5">
-              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl flex items-center justify-center shrink-0">
-                <TrendingUp size={22} className="text-emerald-600 dark:text-emerald-400" />
+        {/* ── Charts Row ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          {/* Monthly Revenue */}
+          <Card className="lg:col-span-2 border-border shadow-sm bg-card">
+            <CardHeader className="pb-2 px-5 pt-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-foreground">Month Wise Revenue</CardTitle>
+                <Badge variant="secondary" className="text-[10px]">Last 6 months</Badge>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                  {isFiltered ? 'Revenue (filtered)' : 'Page Revenue'}
-                </p>
-                <div className="flex items-end gap-3 mt-1">
-                  {isLoading ? (
-                    <div className="w-36 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
-                  ) : (
-                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-50 tabular-nums tracking-tight">
-                      {fmt(totalRevenue)}
-                    </p>
-                  )}
-                  {!isLoading && sales.length > 0 && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500 mb-1 font-medium">{sales.length} sales</span>
-                  )}
-                </div>
-              </div>
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              {monthlyLoading ? (
+                <Skeleton className="h-[220px] w-full rounded-xl" />
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={monthly} barSize={32} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={false} tickLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={fmtK}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={false} tickLine={false} width={55}
+                    />
+                    <Tooltip content={<BarTooltip />} cursor={{ fill: 'var(--muted)', radius: 4 }} />
+                    <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
+                      {monthly.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={entry.revenue < 0 ? '#f43f5e' : '#22c55e'}
+                          opacity={i === monthly.length - 1 ? 1 : 0.75}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
-          <Card className="border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="w-12 h-12 bg-violet-50 dark:bg-violet-900/30 border border-violet-100 dark:border-violet-800/50 rounded-2xl flex items-center justify-center shrink-0">
-                <BarChart3 size={20} className="text-violet-600 dark:text-violet-400" />
+          {/* Yearly Revenue */}
+          <Card className="border-border shadow-sm bg-card">
+            <CardHeader className="pb-2 px-5 pt-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-foreground">Net Revenue Year Wise</CardTitle>
+                <Badge variant="secondary" className="text-[10px]">FY</Badge>
               </div>
-              <div>
-                <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Total Orders</p>
-                {isLoading ? (
-                  <div className="w-16 h-7 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-50 mt-1 tabular-nums">
-                    {pagination?.total?.toLocaleString('en-IN') ?? '—'}
-                  </p>
-                )}
-              </div>
+            </CardHeader>
+            <CardContent className="px-2 pb-4">
+              {yearlyLoading ? (
+                <Skeleton className="h-[220px] w-full rounded-xl" />
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={yearly} barSize={40} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={false} tickLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={fmtK}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={false} tickLine={false} width={55}
+                    />
+                    <Tooltip content={<BarTooltip />} cursor={{ fill: 'var(--muted)', radius: 4 }} />
+                    <Bar dataKey="revenue" fill="#22c55e" radius={[6, 6, 0, 0]} opacity={0.85} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* ── Filters + Toolbar ── */}
-        <Card className="border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+        {/* ── Treemap ── */}
+        <Card className="border-border shadow-sm bg-card">
+          <CardHeader className="pb-2 px-5 pt-5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Revenue Breakdown — {treemapView === 'products' ? 'Top Products' : 'By Branch'}
+              </CardTitle>
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <button
+                  onClick={() => setTreemapView('products')}
+                  className={`text-xs px-3 py-1 rounded-md font-medium transition-all ${
+                    treemapView === 'products'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Products
+                </button>
+                <button
+                  onClick={() => setTreemapView('branches')}
+                  className={`text-xs px-3 py-1 rounded-md font-medium transition-all ${
+                    treemapView === 'branches'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Branches
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-5">
+            {breakdownLoading ? (
+              <Skeleton className="h-[200px] w-full rounded-xl" />
+            ) : treemapItems.length === 0 ? (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+                No data available
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <Treemap
+                  data={treemapItems.map((item, i) => ({ ...item, value: item.revenue, index: i }))}
+                  dataKey="value"
+                  content={<TreemapContent />}
+                />
+              </ResponsiveContainer>
+            )}
+            {/* Legend */}
+            {!breakdownLoading && treemapItems.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {treemapItems.slice(0, 6).map((item, i) => (
+                  <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: TREEMAP_COLORS[i % TREEMAP_COLORS.length] }} />
+                    <span className="truncate max-w-[100px]">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Filters ── */}
+        <Card className="border-border shadow-sm bg-card">
           <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-
-              {/* Date Filters */}
               <div className="flex items-end gap-3 flex-1">
                 <div className="flex-1 min-w-0 space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">From</Label>
-                  <Input
-                    type="date"
-                    value={startDate}
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">From</Label>
+                  <Input type="date" value={startDate}
                     onChange={(e) => handleDateFilter('start', e.target.value)}
-                    className="h-9 text-sm border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400"
-                  />
+                    className="h-9 text-sm" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">
-                  <Label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">To</Label>
-                  <Input
-                    type="date"
-                    value={endDate}
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">To</Label>
+                  <Input type="date" value={endDate}
                     onChange={(e) => handleDateFilter('end', e.target.value)}
-                    className="h-9 text-sm border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-400"
-                  />
+                    className="h-9 text-sm" />
                 </div>
                 {isFiltered && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={clearFilters}
-                    className="h-9 w-9 border-gray-200 dark:border-gray-700 text-gray-400 hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 shrink-0"
-                    title="Clear filters"
-                  >
+                  <Button variant="outline" size="icon" onClick={clearFilters}
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive hover:border-destructive/50 hover:bg-destructive/5 shrink-0">
                     <X size={13} />
                   </Button>
                 )}
               </div>
-
-              <Separator orientation="vertical" className="h-9 hidden sm:block dark:bg-gray-700" />
-
-              {/* Right side toolbar */}
+              <Separator orientation="vertical" className="h-9 hidden sm:block" />
               <div className="flex items-center gap-2 shrink-0">
                 {isFiltered && (
-                  <Badge variant="secondary" className="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60 font-semibold text-[11px]">
+                  <Badge variant="secondary" className="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60 text-[11px] font-semibold">
                     Filtered
                   </Badge>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownload}
-                  disabled={downloading || isLoading || sales.length === 0}
-                  className="h-9 gap-2 text-sm border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 font-medium"
-                >
-                  {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                  Export Excel
-                </Button>
               </div>
             </div>
           </CardContent>
@@ -217,19 +428,19 @@ export default function SalesPage() {
 
         {/* ── Table ── */}
         <div className="space-y-1">
-          <div className="flex items-center gap-2 px-1">
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          <div className="flex items-center justify-between px-1">
+            <p className="text-sm font-semibold text-foreground">
               {isFiltered ? 'Filtered Results' : 'All Transactions'}
             </p>
             {isFiltered && (
-              <Badge variant="outline" className="text-[11px] text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/60 dark:bg-indigo-900/30 font-semibold">
+              <Badge variant="outline" className="text-[11px] text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/60 font-semibold">
                 filtered
               </Badge>
             )}
           </div>
           <SalesTable
             sales={sales}
-            isLoading={isLoading}
+            isLoading={listLoading}
             page={page}
             totalPages={pagination?.pages ?? 1}
             total={pagination?.total ?? 0}
@@ -240,7 +451,6 @@ export default function SalesPage() {
 
       </div>
 
-      {/* ── Modal ── */}
       {showModal && <RecordSaleModal onClose={() => setShowModal(false)} />}
     </div>
   )

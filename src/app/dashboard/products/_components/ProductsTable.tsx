@@ -132,12 +132,12 @@ export default function ProductsTable({ products = [], onEdit, onDelete }: Produ
 
                   {/* Purchase Price */}
                   <TableCell className="text-sm text-muted-foreground font-medium">
-                    ₹{product.purchasePrice.toLocaleString('en-IN')}
+                    ₹{(product.purchasePrice ?? 0).toLocaleString('en-IN')}
                   </TableCell>
 
                   {/* Selling Price */}
                   <TableCell className="text-sm font-semibold text-foreground">
-                    ₹{product.sellingPrice.toLocaleString('en-IN')}
+                    ₹{(product.sellingPrice ?? 0).toLocaleString('en-IN')}
                   </TableCell>
 
                   {/* Stock */}
@@ -147,7 +147,7 @@ export default function ProductsTable({ products = [], onEdit, onDelete }: Produ
 
                   {/* Actions */}
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"

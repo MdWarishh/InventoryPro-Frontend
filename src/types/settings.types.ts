@@ -52,6 +52,7 @@ export interface Settings {
   footerColor?: string
   fontSize: string
   fontFamily: string
+  customPaymentModes?: string[]
 
   updatedAt: string
 }
@@ -100,6 +101,7 @@ export interface UpdateSettingsPayload {
   bankAccountNumber?: string
   bankIFSC?: string
   bankBranch?: string
+  customPaymentModes?: string[]
 
   // Misc
   timezone?: string

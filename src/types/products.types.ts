@@ -26,13 +26,14 @@ export interface Product {
   categoryId: string
   category: Category
   unit: string
-  purchasePrice: number
-  sellingPrice: number
+  purchasePrice?: number
+  sellingPrice?: number
   gstRate: number
   hsnCode?: string
   minStockAlert: number
   images: string[]
   hasSerialNumbers: boolean
+  brand?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -67,13 +68,14 @@ export interface CreateProductPayload {
   categoryId: string
   categoryName?: string
   unit?: string
-  purchasePrice: number
-  sellingPrice: number
+  purchasePrice?: number
+  sellingPrice?: number
   gstRate?: number
   hsnCode?: string
   minStockAlert?: number
   barcode?: string
   hasSerialNumbers?: boolean
+  brand?: string
   images?: File[]
 }
 

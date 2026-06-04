@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { getInvoiceById } from '@/services/invoice.service'
+import { getInvoiceById, deleteInvoice } from '@/services/invoice.service'
 import type { Invoice } from '@/types/invoices.types'
-import { Printer, ChevronLeft, Loader2 } from 'lucide-react'
+import { Printer, ChevronLeft, Loader2, Pencil, Trash2 } from 'lucide-react'
 
 const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
   'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen']
@@ -32,17 +32,14 @@ const fmtDate = (d: string) =>
 const BD = '1px solid #bbb'
 const ID = '1px solid #ccc'
 
-const paymentModeLabel = (mode?: string) => {
-  if (!mode) return 'Cash'
-  const map: Record<string, string> = { CASH: 'Cash', UPI: 'UPI', CARD: 'Card' }
-  return map[mode.toUpperCase()] ?? mode
-}
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router  = useRouter()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+
 
   useEffect(() => {
     if (!id) return
@@ -82,6 +79,19 @@ export default function InvoiceDetailPage() {
   }
   const leftLines  = splitFooterLines(s?.invoiceFooter)
   const rightLines = splitFooterLines(s?.footerServices)
+ 
+
+  const handleDelete = async () => {
+  if (!confirm('Are you sure? This will restore stock and cannot be undone.')) return
+  setDeleting(true)
+  try {
+    await deleteInvoice(id)
+    router.push('/dashboard/invoices')
+  } catch (e: any) {
+    alert(e?.response?.data?.message ?? 'Failed to delete invoice.')
+    setDeleting(false)
+  }
+}
 
   return (
     <>
@@ -92,10 +102,38 @@ export default function InvoiceDetailPage() {
           className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 transition-colors">
           <ChevronLeft size={18} /> Back to Invoices
         </button>
+          <div className="flex items-center gap-2">
+    {/* Delete button */}
+    <button
+      onClick={handleDelete}
+      disabled={deleting || !!invoice.dealerId}  // dealer invoice delete allowed hai
+      title={invoice.dealerId ? 'Delete from dealer section' : 'Delete invoice'}
+      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border
+        border-red-200 dark:border-red-800 text-red-600 dark:text-red-400
+        hover:bg-red-50 dark:hover:bg-red-900/20
+        disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    >
+      {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+      Delete
+    </button>
+
+    {/* Edit button — dealer invoice edit nahi hoti abhi */}
+    {!invoice.dealerId && (
+      <button
+        onClick={() => router.push(`/dashboard/invoices/${id}/edit`)}
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border
+          border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400
+          hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+      >
+        <Pencil size={15} /> Edit
+      </button>
+    )}
+
         <button onClick={() => window.print()}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
           <Printer size={16} /> Print / Save PDF
         </button>
+      </div>
       </div>
 
       <div className="print:block bg-gray-200 print:bg-white min-h-screen py-8 print:py-0 flex justify-center">
@@ -244,7 +282,7 @@ export default function InvoiceDetailPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', borderBottom: '1px solid #e8e8e8', fontWeight: 700 }}>
                   <div style={{ padding: '4px 10px', color: '#111' }}>Paid Via</div>
                   <div style={{ padding: '4px 12px', textAlign: 'right', color: '#111' }}>
-                    {paymentModeLabel(invoice.paymentMode)}
+                   {invoice.paymentMode ?? 'Cash'}
                   </div>
                 </div>
               </div>

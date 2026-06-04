@@ -114,7 +114,7 @@ export function RecordSaleModal({ onClose }: Props) {
   const handleProductChange = (id: string) => {
     setValue('productId', id)
     const prod = products.find((p) => p.id === id)
-    if (prod) setValue('sellingPrice', prod.sellingPrice)
+    if (prod) setValue('sellingPrice', prod.sellingPrice ?? 0)
     setSelectedSerialIds([])
     setSerialError(null)
   }

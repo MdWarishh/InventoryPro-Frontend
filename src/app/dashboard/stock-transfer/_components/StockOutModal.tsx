@@ -19,23 +19,32 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertCircle, Hash, CheckCircle2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { StockOutRecord } from '@/types/stock-transfer.types'
 
-interface ProductOption { id: string; name: string; sku: string; hasSerialNumbers: boolean }
+interface ProductOption { id: string; name: string; sku: string; hasSerialNumbers: boolean; brand?: string }
 interface BranchOption { id: string; name: string }
 interface SerialOption { id: string; serialNumber: string }
 
 interface Props {
   open: boolean
+  editRecord?: StockOutRecord | null
   onClose: () => void
   onSuccess: () => void
 }
 
 const INIT = {
   productId: '', branchId: '', quantity: '', sellingPrice: '',
-  customerName: '', customerPhone: '', notes: '', date: '',
+  customerName: '', customerPhone: '', notes: '', date: '', brand: '',
 }
 
-export default function StockOutModal({ open, onClose, onSuccess }: Props) {
+const toDateInput = (iso?: string) => {
+  if (!iso) return ''
+  return new Date(iso).toISOString().slice(0, 10)
+}
+
+export default function StockOutModal({ open, editRecord, onClose, onSuccess }: Props) {
+  const isEdit = !!editRecord
+
   const [form, setForm] = useState(INIT)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -49,10 +58,12 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
   const [loadingSerials, setLoadingSerials] = useState(false)
 
   const selectedProduct = products.find(p => p.id === form.productId)
-  const needsSerials = selectedProduct?.hasSerialNumbers ?? false
+  const needsSerials = selectedProduct?.hasSerialNumbers
+    ?? (isEdit ? !!(editRecord?.serialNumbers?.length) : false)
   const qty = Number(form.quantity) || 0
   const serialsReady = !needsSerials || (qty > 0 && selectedIds.length === qty)
 
+  // Load dropdowns
   useEffect(() => {
     if (!open) return
     setLoadingDropdowns(true)
@@ -68,20 +79,71 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
       .finally(() => setLoadingDropdowns(false))
   }, [open])
 
+  // Pre-fill or reset form
   useEffect(() => {
-    if (!open) { setForm(INIT); setAvailableSerials([]); setSelectedIds([]); setError('') }
-  }, [open])
+    if (!open) {
+      setForm(INIT); setAvailableSerials([]); setSelectedIds([]); setError('')
+      return
+    }
+    if (editRecord) {
+      setForm({
+        productId:    editRecord.productId ?? '',
+        branchId:     editRecord.branchId ?? '',
+        quantity:     String(editRecord.quantity ?? ''),
+        sellingPrice: String(editRecord.sellingPrice ?? ''),
+        customerName: editRecord.customerName ?? '',
+        customerPhone: editRecord.customerPhone ?? '',
+        notes:        editRecord.notes ?? '',
+        date:         toDateInput(editRecord.date),
+        brand:        editRecord.product?.brand ?? '',
+      })
+      // Pre-select existing serial numbers
+      const existingIds = (editRecord.serialNumbers ?? []).map(s => s.id)
+      setSelectedIds(existingIds)
+    } else {
+      setForm(INIT); setAvailableSerials([]); setSelectedIds([]); setError('')
+    }
+  }, [open, editRecord])
 
+  // Load available serials when product+branch set
   useEffect(() => {
-    setAvailableSerials([]); setSelectedIds([])
-    if (!needsSerials || !form.productId || !form.branchId) return
+    const productId = isEdit ? editRecord?.productId : form.productId
+    const branchId  = isEdit ? editRecord?.branchId  : form.branchId
+    if (!needsSerials || !productId || !branchId) {
+      if (!isEdit) { setAvailableSerials([]); setSelectedIds([]) }
+      return
+    }
     setLoadingSerials(true)
-    serialService.getAvailable(form.productId, form.branchId)
-      .then(data => setAvailableSerials(data as SerialOption[]))
+    serialService.getAvailable(productId, branchId)
+      .then(data => {
+        // In edit mode: merge available serials + already-selected (SOLD) serials from record
+        if (isEdit && editRecord?.serialNumbers?.length) {
+          const soldSerials: SerialOption[] = editRecord.serialNumbers.map(s => ({
+            id: s.id,
+            serialNumber: s.serialNumber,
+          }))
+          const availIds = new Set((data as SerialOption[]).map(s => s.id))
+          const merged = [
+            ...soldSerials.filter(s => !availIds.has(s.id)), // already-sold ones first
+            ...(data as SerialOption[]),
+          ]
+          setAvailableSerials(merged)
+        } else {
+          setAvailableSerials(data as SerialOption[])
+        }
+      })
       .catch(() => setAvailableSerials([]))
       .finally(() => setLoadingSerials(false))
-  }, [form.productId, form.branchId, needsSerials])
+  }, [form.productId, form.branchId, needsSerials, isEdit])
 
+  // Auto-fill brand (create mode only)
+  useEffect(() => {
+    if (isEdit) return
+    const p = products.find(x => x.id === form.productId)
+    set('brand', p?.brand || '')
+  }, [form.productId, products, isEdit])
+
+  // Trim selectedIds if qty reduced
   useEffect(() => {
     if (qty > 0 && selectedIds.length > qty) setSelectedIds(prev => prev.slice(0, qty))
   }, [qty])
@@ -108,19 +170,30 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
     }
     try {
       setLoading(true)
-      await stockService.stockOut({
-        productId: form.productId,
-        branchId: form.branchId,
-        quantity: qty,
-        sellingPrice: Number(form.sellingPrice),
-        customerName: form.customerName || undefined,
-        customerPhone: form.customerPhone || undefined,
-        notes: form.notes || undefined,
-        date: form.date || undefined,
-        serialNumberIds: needsSerials ? selectedIds : undefined,
-      })
+      if (isEdit && editRecord) {
+        await stockService.updateStockOut(editRecord.id, {
+          quantity:      qty,
+          sellingPrice:  Number(form.sellingPrice),
+          customerName:  form.customerName || undefined,
+          customerPhone: form.customerPhone || undefined,
+          notes:         form.notes || undefined,
+          date:          form.date || undefined,
+          serialNumberIds: needsSerials ? selectedIds : undefined,
+        })
+      } else {
+        await stockService.stockOut({
+          productId:     form.productId,
+          branchId:      form.branchId,
+          quantity:      qty,
+          sellingPrice:  Number(form.sellingPrice),
+          customerName:  form.customerName || undefined,
+          customerPhone: form.customerPhone || undefined,
+          notes:         form.notes || undefined,
+          date:          form.date || undefined,
+          serialNumberIds: needsSerials ? selectedIds : undefined,
+        })
+      }
       onSuccess()
-      onClose()
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Something went wrong')
     } finally {
@@ -136,7 +209,7 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
             <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 text-xs font-bold px-2">
               OUT
             </Badge>
-            Record Stock Out
+            {isEdit ? 'Edit Stock Out Record' : 'Record Stock Out'}
           </DialogTitle>
         </DialogHeader>
 
@@ -152,30 +225,46 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Product Details</p>
             <div className="grid grid-cols-2 gap-3">
+
               <div className="col-span-2 space-y-1.5">
                 <Label>Product <span className="text-destructive">*</span></Label>
-                <Select value={form.productId} onValueChange={v => set('productId', v)} disabled={loadingDropdowns} required>
-                  <SelectTrigger><SelectValue placeholder={loadingDropdowns ? 'Loading…' : 'Select product'} /></SelectTrigger>
-                  <SelectContent>
-                    {products.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name} ({p.sku}){p.hasSerialNumbers ? ' 🔢' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isEdit ? (
+                  <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-muted/50 text-sm text-foreground">
+                    <span className="font-medium">{editRecord?.product?.name}</span>
+                    <code className="text-xs text-muted-foreground">({editRecord?.product?.sku})</code>
+                    <Badge variant="secondary" className="ml-auto text-[10px]">locked</Badge>
+                  </div>
+                ) : (
+                  <Select value={form.productId} onValueChange={v => set('productId', v)} disabled={loadingDropdowns} required>
+                    <SelectTrigger><SelectValue placeholder={loadingDropdowns ? 'Loading…' : 'Select product'} /></SelectTrigger>
+                    <SelectContent>
+                      {products.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} ({p.sku}){p.hasSerialNumbers ? ' 🔢' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="col-span-2 space-y-1.5">
                 <Label>Branch <span className="text-destructive">*</span></Label>
-                <Select value={form.branchId} onValueChange={v => set('branchId', v)} disabled={loadingDropdowns} required>
-                  <SelectTrigger><SelectValue placeholder={loadingDropdowns ? 'Loading…' : 'Select branch'} /></SelectTrigger>
-                  <SelectContent>
-                    {branches.map(b => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isEdit ? (
+                  <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-muted/50 text-sm text-foreground">
+                    <span>{editRecord?.branch?.name}</span>
+                    <Badge variant="secondary" className="ml-auto text-[10px]">locked</Badge>
+                  </div>
+                ) : (
+                  <Select value={form.branchId} onValueChange={v => set('branchId', v)} disabled={loadingDropdowns} required>
+                    <SelectTrigger><SelectValue placeholder={loadingDropdowns ? 'Loading…' : 'Select branch'} /></SelectTrigger>
+                    <SelectContent>
+                      {branches.map(b => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -193,12 +282,12 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
           </div>
 
           {/* Serial Picker */}
-          {needsSerials && form.productId && form.branchId && (
+          {needsSerials && (isEdit || (form.productId && form.branchId)) && (
             <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Hash className="w-4 h-4 text-primary" />
-                  Select Serial Numbers
+                  {isEdit ? 'Serial Numbers' : 'Select Serial Numbers'}
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge
@@ -295,11 +384,13 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Customer Name</Label>
-                <Input placeholder="John Doe" value={form.customerName} onChange={e => set('customerName', e.target.value)} />
+                <Input placeholder="John Doe" value={form.customerName}
+                  onChange={e => set('customerName', e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Customer Phone</Label>
-                <Input placeholder="+91 98765 43210" value={form.customerPhone} onChange={e => set('customerPhone', e.target.value)} />
+                <Input placeholder="+91 98765 43210" value={form.customerPhone}
+                  onChange={e => set('customerPhone', e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Date</Label>
@@ -307,7 +398,20 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label>Notes</Label>
-                <Input placeholder="Optional notes…" value={form.notes} onChange={e => set('notes', e.target.value)} />
+                <Input placeholder="Optional notes…" value={form.notes}
+                  onChange={e => set('notes', e.target.value)} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  Brand / Manufacturer
+                  {form.brand && (
+                    <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-full">
+                      auto-filled
+                    </span>
+                  )}
+                </Label>
+                <Input placeholder="e.g. Samsung, Apple…" value={form.brand}
+                  onChange={e => set('brand', e.target.value)} />
               </div>
             </div>
           </div>
@@ -319,7 +423,9 @@ export default function StockOutModal({ open, onClose, onSuccess }: Props) {
               disabled={loading || (needsSerials && !serialsReady)}
               className="bg-rose-600 hover:bg-rose-700 text-white dark:bg-rose-700 dark:hover:bg-rose-600"
             >
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Recording…</> : 'Record Stock Out'}
+              {loading
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{isEdit ? 'Saving…' : 'Recording…'}</>
+                : (isEdit ? 'Save Changes' : 'Record Stock Out')}
             </Button>
           </DialogFooter>
         </form>

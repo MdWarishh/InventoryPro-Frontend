@@ -42,12 +42,10 @@ const defaultForm: CreateProductPayload = {
   name: '',
   sku: '',
   categoryId: '',
-  purchasePrice: 0,
-  sellingPrice: 0,
   minStockAlert: 10,
-  gstRate: 18,
   unit: 'pcs',
   hasSerialNumbers: false,
+  brand: '',
 }
 
 export default function ProductModal({
@@ -68,15 +66,13 @@ export default function ProductModal({
         name: editProduct.name,
         sku: editProduct.sku,
         categoryId: editProduct.categoryId,
-        purchasePrice: editProduct.purchasePrice,
-        sellingPrice: editProduct.sellingPrice,
         minStockAlert: editProduct.minStockAlert,
-        gstRate: editProduct.gstRate,
         unit: editProduct.unit,
         hsnCode: editProduct.hsnCode,
         barcode: editProduct.barcode,
         description: editProduct.description,
         hasSerialNumbers: editProduct.hasSerialNumbers,
+        brand: editProduct.brand || '',
       })
     } else {
       setForm(defaultForm)
@@ -150,42 +146,8 @@ export default function ProductModal({
 
           <Separator />
 
-          {/* Pricing */}
+          {/* Unit + Min Stock */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="purchasePrice">
-                Purchase Price (₹) <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="purchasePrice"
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="0.00"
-                value={form.purchasePrice}
-                onChange={(e) => set('purchasePrice', parseFloat(e.target.value) || 0)}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sellingPrice">
-                Sale Price (₹) <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="sellingPrice"
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="0.00"
-                value={form.sellingPrice}
-                onChange={(e) => set('sellingPrice', parseFloat(e.target.value) || 0)}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Unit + GST + Min Stock */}
-          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label>Unit</Label>
               <Select value={form.unit || 'pcs'} onValueChange={(v) => set('unit', v)}>
@@ -193,24 +155,13 @@ export default function ProductModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {['pcs', 'kg', 'g', 'l', 'ml', 'box', 'set'].map((u) => (
+                  {['pcs', 'prs', 'box', 'set'].map((u) => (
                     <SelectItem key={u} value={u}>
                       {u}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="gstRate">GST (%)</Label>
-              <Input
-                id="gstRate"
-                type="number"
-                min={0}
-                max={100}
-                value={form.gstRate}
-                onChange={(e) => set('gstRate', parseFloat(e.target.value) || 0)}
-              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="minStockAlert">Low Stock At</Label>
@@ -226,6 +177,17 @@ export default function ProductModal({
 
           <Separator />
 
+          {/* Brand / Manufacturer */}
+          <div className="space-y-1.5">
+            <Label htmlFor="brand">Brand / Manufacturer</Label>
+            <Input
+              id="brand"
+              placeholder="e.g. Samsung, Apple, Bosch"
+              value={form.brand || ''}
+              onChange={(e) => set('brand', e.target.value)}
+            />
+          </div>
+
           {/* HSN + Barcode */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -237,7 +199,7 @@ export default function ProductModal({
                 onChange={(e) => set('hsnCode', e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
+            {/* <div className="space-y-1.5">
               <Label htmlFor="barcode">Barcode</Label>
               <Input
                 id="barcode"
@@ -245,7 +207,7 @@ export default function ProductModal({
                 value={form.barcode || ''}
                 onChange={(e) => set('barcode', e.target.value)}
               />
-            </div>
+            </div> */}
           </div>
 
           {/* Supplier */}

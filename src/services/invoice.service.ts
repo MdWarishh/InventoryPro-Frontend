@@ -30,3 +30,15 @@ export const createInvoice = async (payload: CreateInvoicePayload): Promise<Invo
 export const resetCounter = async (branchId: string): Promise<void> => {
   await api.post('/invoices/reset-counter', { branchId })
 }
+
+
+// PUT /api/invoices/:id
+export const updateInvoice = async (id: string, payload: CreateInvoicePayload): Promise<Invoice> => {
+  const { data } = await api.put(`/invoices/${id}`, payload)
+  return data.data
+}
+
+// DELETE /api/invoices/:id
+export const deleteInvoice = async (id: string): Promise<void> => {
+  await api.delete(`/invoices/${id}`)
+}

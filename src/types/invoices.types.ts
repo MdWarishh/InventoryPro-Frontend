@@ -56,7 +56,7 @@ export interface Invoice {
   totalAmount: number
   notes?: string
   terms?: string
-  paymentMode?: 'CASH' | 'UPI' | 'CARD'
+  paymentMode?: string 
   stockOuts: StockOut[]
   // NEW: dealer link
   dealerId?: string
@@ -98,7 +98,7 @@ export interface CreateInvoicePayload {
   discount?: number
   notes?: string
   terms?: string
-  paymentMode?: 'CASH' | 'UPI' | 'CARD'
+  paymentMode?: string
   // NEW: pass dealerId to trigger dealer invoice flow on backend
   dealerId?: string
   items: {

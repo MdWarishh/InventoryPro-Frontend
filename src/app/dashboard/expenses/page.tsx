@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { History, Wallet, ShieldOff } from 'lucide-react'
+import { History, Wallet, ShieldOff, BarChart2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AddExpenseForm } from './_components/AddExpenseForm'
 import { ExpenseList } from './_components/ExpenseList'
 import { ExpenseStatsCards } from './_components/ExpenseStatsCards'
 import { HistoryFilters } from './_components/HistoryFilters'
+import { ExpenseYearlyChart } from './_components/ExpenseYearlyChart'
 import {
   useExpenses,
   useExpenseStats,
@@ -16,7 +16,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import type { ExpenseFilters, StatsFilters } from '@/types/expenses.types'
 
-// ─── No Access State ─────────────────────────────────────────────────────────
+// ─── No Access State ──────────────────────────────────────────────────────────
 
 function NoAccess() {
   return (
@@ -61,9 +61,7 @@ function CurrentMonthTab({ canCreate, canDelete }: TabProps) {
   return (
     <div className="space-y-4">
       <ExpenseStatsCards stats={stats} isLoading={statsLoading} label={monthLabel} />
-
       {canCreate && <AddExpenseForm onSuccess={handleSuccess} />}
-
       <ExpenseList
         key={key}
         expenses={expenses}
@@ -75,7 +73,7 @@ function CurrentMonthTab({ canCreate, canDelete }: TabProps) {
   )
 }
 
-// ─── History Tab ─────────────────────────────────────────────────────────────
+// ─── History Tab ──────────────────────────────────────────────────────────────
 
 function HistoryTab({ canDelete }: { canDelete: boolean }) {
   const [listFilters, setListFilters] = useState<ExpenseFilters>({})
@@ -108,7 +106,17 @@ function HistoryTab({ canDelete }: { canDelete: boolean }) {
   )
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+// ─── Yearly Tab ───────────────────────────────────────────────────────────────
+
+function YearlyTab() {
+  return (
+    <div className="space-y-4">
+      <ExpenseYearlyChart />
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ExpensesPage() {
   const { hasPermission } = useAuth()
@@ -149,6 +157,13 @@ export default function ExpensesPage() {
               <History className="w-3.5 h-3.5" />
               History
             </TabsTrigger>
+            <TabsTrigger
+              value="yearly"
+              className="text-xs font-medium rounded-lg data-[state=active]:bg-violet-600 data-[state=active]:text-white data-[state=active]:shadow-sm px-4 py-1.5 gap-1.5"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              Yearly
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="current" className="mt-4">
@@ -157,6 +172,10 @@ export default function ExpensesPage() {
 
           <TabsContent value="history" className="mt-4">
             <HistoryTab canDelete={canDelete} />
+          </TabsContent>
+
+          <TabsContent value="yearly" className="mt-4">
+            <YearlyTab />
           </TabsContent>
         </Tabs>
       </div>

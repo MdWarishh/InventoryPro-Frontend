@@ -11,10 +11,10 @@ import { useAuthStore } from '@/store/auth.store'
 import type { Product } from '@/types/products.types'
 import type { SerialNumber } from '@/types/serial.types'
 import type { Dealer } from '@/types/dealers.types'
+import settingsService from '@/services/settings.service'
 import {
   Plus, Trash2, Search, ChevronLeft, Loader2, X, Hash,
-  ChevronDown, ChevronUp, CreditCard, Banknote, Smartphone,
-  Building2, CheckCircle2, AlertCircle,
+  ChevronDown, ChevronUp, Building2, CheckCircle2, AlertCircle,
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -33,8 +33,6 @@ interface LineItem {
   // dealer invoice mode mein serials dealer ke assigned hain
   isDealerSerial?: boolean
 }
-
-type PaymentMode = 'CASH' | 'UPI' | 'CARD'
 
 const emptyItem = (): LineItem => ({
   productId: '', productName: '', sku: '',
@@ -76,7 +74,6 @@ export default function CreateInvoicePage() {
   const [date,    setDate]    = useState(new Date().toISOString().split('T')[0])
   const [discount, setDiscount] = useState(0)
   const [notes,   setNotes]   = useState('')
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH')
 
   const [items, setItems] = useState<LineItem[]>([emptyItem()])
 
@@ -89,6 +86,9 @@ export default function CreateInvoicePage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [error,      setError]      = useState('')
+const [modesLoading, setModesLoading] = useState(true)
+const [paymentModes, setPaymentModes] = useState<string[]>(['Cash'])
+const [paymentMode, setPaymentMode] = useState<string>('Cash')
 
   // Load dealers
   useEffect(() => {
@@ -114,6 +114,18 @@ export default function CreateInvoicePage() {
       .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerIdFromUrl])
+
+useEffect(() => {
+  settingsService.getSettings(user?.branchId ?? null)
+    .then(s => {
+      if ((s as any).customPaymentModes?.length) {
+        setPaymentModes((s as any).customPaymentModes)
+        setPaymentMode((s as any).customPaymentModes[0])
+      }
+    })
+    .catch(() => {})
+}, [user?.branchId])
+
 
   const prefillCustomerFromDealer = (d: Dealer) => {
     setCustomerName(d.name)
@@ -146,12 +158,12 @@ export default function CreateInvoicePage() {
         productId:         p.productId,
         productName:       p.productName,
         sku:               p.sku,
-        quantity:          p.quantity,          // = unbilled serials count
+        quantity:          0,          // = unbilled serials count
         sellingPrice:      p.sellingPrice,
         gstRate:           p.gstRate ?? 18,
         hasSerialNumbers:  p.hasSerialNumbers,
         // Dealer ke UNBILLED serials — sab pre-selected
-        selectedSerialIds: p.serials.map((s: any) => s.id),
+        selectedSerialIds: [],
         availableSerials:  p.serials.map((s: any) => ({
           id: s.id,
           serialNumber: s.serialNumber,
@@ -162,7 +174,7 @@ export default function CreateInvoicePage() {
           updatedAt: '',
         })),
         serialsLoading: false,
-        showSerials:    p.hasSerialNumbers,
+        showSerials: false, 
         isDealerSerial: true,   // flag: ye serials dealer ke hain, branch ke nahi
       }))
 
@@ -257,7 +269,7 @@ export default function CreateInvoicePage() {
         productId:         product.id,
         productName:       product.name,
         sku:               product.sku,
-        sellingPrice:      product.sellingPrice,
+        sellingPrice:      product.sellingPrice ?? 0,
         gstRate:           product.gstRate,
         hasSerialNumbers:  product.hasSerialNumbers,
         selectedSerialIds: [],
@@ -359,11 +371,12 @@ export default function CreateInvoicePage() {
     }
   }
 
-  const paymentOptions: { value: PaymentMode; label: string; icon: React.ReactNode }[] = [
-    { value: 'CASH', label: 'Cash',  icon: <Banknote size={15} /> },
-    { value: 'UPI',  label: 'UPI',   icon: <Smartphone size={15} /> },
-    { value: 'CARD', label: 'Card',  icon: <CreditCard size={15} /> },
-  ]
+  // const paymentOptions: { value: PaymentMode; label: string; icon: React.ReactNode }[] = [
+  //   { value: 'CASH', label: 'Cash',  icon: <Banknote size={15} /> },
+  //   { value: 'UPI',  label: 'UPI',   icon: <Smartphone size={15} /> },
+  //   { value: 'CARD', label: 'Card',  icon: <CreditCard size={15} /> },
+  // ]
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   return (
@@ -579,7 +592,7 @@ export default function CreateInvoicePage() {
                                           )}
                                         </div>
                                         <div className="text-xs text-gray-400 mt-0.5">
-                                          {p.sku} · ₹{fmt(p.sellingPrice)} · GST {p.gstRate}%
+                                          {p.sku} · ₹{fmt(p.sellingPrice ?? 0)} · GST {p.gstRate}%
                                         </div>
                                       </div>
                                     ))
@@ -757,21 +770,23 @@ export default function CreateInvoicePage() {
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Paid Via</p>
-                <div className="flex gap-2">
-                  {paymentOptions.map(opt => (
-                    <button key={opt.value} type="button" onClick={() => setPaymentMode(opt.value)}
-                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border text-xs font-semibold transition-all
-                        ${paymentMode === opt.value
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 hover:border-indigo-400 hover:text-indigo-600'
-                        }`}>
-                      {opt.icon}{opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+       <div>
+  <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Paid Via</p>
+  <div className="relative">
+    <select
+      value={paymentMode}
+      onChange={e => setPaymentMode(e.target.value)}
+      className="w-full appearance-none px-3 py-2.5 text-sm rounded-lg border border-gray-200
+        dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white
+        focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors cursor-pointer pr-8"
+    >
+      {paymentModes.map(mode => (
+        <option key={mode} value={mode}>{mode}</option>
+      ))}
+    </select>
+    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+  </div>
+</div>
             </div>
           </div>
 

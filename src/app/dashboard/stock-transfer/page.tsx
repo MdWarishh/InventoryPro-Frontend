@@ -37,9 +37,15 @@ export default function StockPage() {
   const [lowStock, setLowStock] = useState(false)
   const [histPage, setHistPage] = useState(1)
 
+  // ── Stock In modal state ──────────────────────────────────────────────────
   const [inModal, setInModal] = useState(false)
-  const [outModal, setOutModal] = useState(false)
+  const [editStockIn, setEditStockIn] = useState<StockInRecord | null>(null)
 
+  // ── Stock Out modal state ─────────────────────────────────────────────────
+  const [outModal, setOutModal] = useState(false)
+  const [editStockOut, setEditStockOut] = useState<StockOutRecord | null>(null)
+
+  // ── Data fetchers ─────────────────────────────────────────────────────────
   const loadCurrent = useCallback(async () => {
     setFetching(true)
     try {
@@ -66,6 +72,13 @@ export default function StockPage() {
     else loadHistory(tab as StockHistoryType, histPage)
   }, [tab, lowStock, histPage])
 
+  // Refresh both current + active history tab after any mutation
+  const refreshAll = useCallback(() => {
+    loadCurrent()
+    if (tab === 'in') loadHistory('in', histPage)
+    if (tab === 'out') loadHistory('out', histPage)
+  }, [tab, histPage, loadCurrent, loadHistory])
+
   const filtered = currentStock.filter(s =>
     s.product?.name?.toLowerCase().includes(search.toLowerCase()) ||
     s.product?.sku?.toLowerCase().includes(search.toLowerCase())
@@ -90,7 +103,7 @@ export default function StockPage() {
             <Button
               variant="outline"
               className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950"
-              onClick={() => setInModal(true)}
+              onClick={() => { setEditStockIn(null); setInModal(true) }}
             >
               <Plus className="w-4 h-4" />
               Stock In
@@ -98,7 +111,7 @@ export default function StockPage() {
             <Button
               variant="outline"
               className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
-              onClick={() => setOutModal(true)}
+              onClick={() => { setEditStockOut(null); setOutModal(true) }}
             >
               <Minus className="w-4 h-4" />
               Stock Out
@@ -154,9 +167,31 @@ export default function StockPage() {
           'rounded-xl border border-border bg-card overflow-hidden transition-opacity duration-200',
           fetching && 'opacity-50 pointer-events-none'
         )}>
-          {tab === 'current' && <CurrentStockTable items={filtered} fetching={fetching} search={search} />}
-          {tab === 'in' && <StockInHistoryTable items={historyItems as StockInRecord[]} fetching={fetching} />}
-          {tab === 'out' && <StockOutHistoryTable items={historyItems as StockOutRecord[]} fetching={fetching} />}
+          {tab === 'current' && (
+            <CurrentStockTable items={filtered} fetching={fetching} search={search} />
+          )}
+          {tab === 'in' && (
+            <StockInHistoryTable
+              items={historyItems as StockInRecord[]}
+              fetching={fetching}
+              onEdit={(record) => {
+                setEditStockIn(record)
+                setInModal(true)
+              }}
+              onDeleteSuccess={refreshAll}
+            />
+          )}
+          {tab === 'out' && (
+            <StockOutHistoryTable
+              items={historyItems as StockOutRecord[]}
+              fetching={fetching}
+              onEdit={(record) => {
+                setEditStockOut(record)
+                setOutModal(true)
+              }}
+              onDeleteSuccess={refreshAll}
+            />
+          )}
 
           {(tab === 'in' || tab === 'out') && (
             <TablePagination pagination={pagination} page={histPage} onPageChange={setHistPage} />
@@ -168,13 +203,25 @@ export default function StockPage() {
       {/* ── Modals ── */}
       <StockInModal
         open={inModal}
-        onClose={() => setInModal(false)}
-        onSuccess={() => { toast.success('Stock in recorded successfully.'); loadCurrent() }}
+        editRecord={editStockIn}
+        onClose={() => { setInModal(false); setEditStockIn(null) }}
+        onSuccess={() => {
+          toast.success(editStockIn ? 'Stock-in record updated.' : 'Stock in recorded successfully.')
+          setInModal(false)
+          setEditStockIn(null)
+          refreshAll()
+        }}
       />
       <StockOutModal
         open={outModal}
-        onClose={() => setOutModal(false)}
-        onSuccess={() => { toast.success('Stock out recorded successfully.'); loadCurrent() }}
+        editRecord={editStockOut}
+        onClose={() => { setOutModal(false); setEditStockOut(null) }}
+        onSuccess={() => {
+          toast.success(editStockOut ? 'Stock-out record updated.' : 'Stock out recorded successfully.')
+          setOutModal(false)
+          setEditStockOut(null)
+          refreshAll()
+        }}
       />
     </div>
   )

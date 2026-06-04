@@ -37,7 +37,7 @@ export default function CurrentStockTable({ items, fetching, search }: Props) {
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent border-border">
-          <TableHead className="w-[260px]">Product</TableHead>
+          <TableHead className="w-[280px]">Product</TableHead>
           <TableHead>SKU</TableHead>
           <TableHead>Branch</TableHead>
           <TableHead>Category</TableHead>
@@ -79,9 +79,16 @@ export default function CurrentStockTable({ items, fetching, search }: Props) {
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Package className="w-4 h-4 text-primary" />
                 </div>
-                <span className="font-medium text-foreground max-w-[180px] truncate" title={s.product?.name}>
-                  {s.product?.name}
-                </span>
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground text-sm truncate max-w-[180px]" title={s.product?.name}>
+                    {s.product?.name}
+                  </p>
+                  {s.product?.brand && (
+                    <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                      {s.product.brand}
+                    </p>
+                  )}
+                </div>
               </div>
             </TableCell>
             <TableCell>

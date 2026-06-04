@@ -10,6 +10,8 @@ import type {
   StockOutPayload,
   StockOutRecord,
   TransferStockPayload,
+  UpdateStockInPayload,
+  UpdateStockOutPayload,
 } from '@/types/stock-transfer.types'
 
 export const stockService = {
@@ -18,9 +20,27 @@ export const stockService = {
     return data.data as StockInRecord
   },
 
+  updateStockIn: async (id: string, payload: UpdateStockInPayload): Promise<StockInRecord> => {
+    const { data } = await api.put(`/stock/in/${id}`, payload)
+    return data.data as StockInRecord
+  },
+
+  deleteStockIn: async (id: string): Promise<void> => {
+    await api.delete(`/stock/in/${id}`)
+  },
+
   stockOut: async (payload: StockOutPayload): Promise<StockOutRecord> => {
     const { data } = await api.post('/stock/out', payload)
     return data.data as StockOutRecord
+  },
+
+  updateStockOut: async (id: string, payload: UpdateStockOutPayload): Promise<StockOutRecord> => {
+    const { data } = await api.put(`/stock/out/${id}`, payload)
+    return data.data as StockOutRecord
+  },
+
+  deleteStockOut: async (id: string): Promise<void> => {
+    await api.delete(`/stock/out/${id}`)
   },
 
   getCurrentStock: async (params?: CurrentStockFilters): Promise<CurrentStock[]> => {

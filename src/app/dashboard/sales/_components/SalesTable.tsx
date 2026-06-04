@@ -5,7 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { StockHistoryItem } from '@/types/stock.types'
+// Inline type — only fields SalesTable actually uses
+interface SaleItem {
+  id: string
+  quantity: number
+  sellingPrice?: number
+  date: string
+  product: {
+    name: string
+    sku: string
+    category?: { name: string; color?: string } | null
+  }
+  dealer?: { name: string } | null
+}
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -28,7 +40,7 @@ function TableHeader() {
 }
 
 // ─── Sale Row ─────────────────────────────────────────────────────────────────
-function SaleRow({ sale }: { sale: StockHistoryItem }) {
+function SaleRow({ sale }: { sale: SaleItem }) {
   const catColor = sale.product.category?.color || '#6366f1'
   const sellingPrice = sale.sellingPrice ?? 0
   const total = sellingPrice * sale.quantity
@@ -235,7 +247,7 @@ function Pagination({ page, totalPages, total, limit, onPageChange }: Pagination
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 interface SalesTableProps {
-  sales: StockHistoryItem[]
+  sales: SaleItem[]
   isLoading: boolean
   page: number; totalPages: number; total: number; limit: number
   onPageChange: (p: number) => void

@@ -2,6 +2,7 @@ export interface SaleProduct {
   id: string
   name: string
   sku: string
+  brand?: string
   category?: { name: string; color: string }
 }
 
@@ -35,16 +36,13 @@ export interface StockOut {
 export interface SalesSummary {
   totalRevenue: number
   totalTransactions: number
+  totalUnits: number
+  avgOrderValue: number
 }
 
 export interface StockOutsResponse {
   stockOuts: StockOut[]
-  pagination: {
-    total: number
-    page: number
-    limit: number
-    pages: number
-  }
+  pagination: { total: number; page: number; limit: number; pages: number }
   summary: SalesSummary
 }
 
@@ -67,4 +65,29 @@ export interface SalesFilters {
   endDate?: string
   branchId?: string
   productId?: string
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+export interface MonthlyRevenue {
+  key: string
+  label: string
+  revenue: number
+  transactions: number
+}
+
+export interface YearlyRevenue {
+  label: string
+  revenue: number
+  transactions: number
+}
+
+export interface BreakdownItem {
+  name: string
+  revenue: number
+  transactions: number
+}
+
+export interface BreakdownData {
+  topProducts: BreakdownItem[]
+  topBranches: BreakdownItem[]
 }
