@@ -357,11 +357,6 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
                 <Input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
               </div>
 
-              <div className="space-y-1.5">
-                <Label>Reference No.</Label>
-                <Input placeholder="PO-001, INV-123…" value={form.referenceNo}
-                  onChange={e => set('referenceNo', e.target.value)} />
-              </div>
 
               <div className="space-y-1.5">
                 <Label>Source Note</Label>

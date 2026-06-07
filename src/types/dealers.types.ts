@@ -90,6 +90,8 @@ export interface StockSummaryItem {
   given: number
   sold: number
   balance: number
+  soldInMonth: number       
+  salesReturn: number 
   availableSerialNumbers?: SerialNumberRef[]
 }
 

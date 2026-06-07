@@ -1,5 +1,6 @@
 export interface StockOut {
   id: string
+  productId: string          // ← ADD THIS (backend already returns it)
   quantity: number
   sellingPrice: number
   product: {
@@ -56,9 +57,8 @@ export interface Invoice {
   totalAmount: number
   notes?: string
   terms?: string
-  paymentMode?: string 
+  paymentMode?: string
   stockOuts: StockOut[]
-  // NEW: dealer link
   dealerId?: string
   dealer?: {
     id: string
@@ -99,7 +99,6 @@ export interface CreateInvoicePayload {
   notes?: string
   terms?: string
   paymentMode?: string
-  // NEW: pass dealerId to trigger dealer invoice flow on backend
   dealerId?: string
   items: {
     productId: string

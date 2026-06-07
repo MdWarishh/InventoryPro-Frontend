@@ -49,19 +49,24 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [giveOpen, setGiveOpen] = useState(false)
   const [saleOpen, setSaleOpen] = useState(false)
+  const [invoiceCount, setInvoiceCount] = useState(0)
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const res = await dealersService.getStockSummary(dealerId)
-      setSummary(res.data.summary)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load')
-    } finally {
-      setLoading(false)
-    }
-  }, [dealerId])
+const load = useCallback(async () => {
+  try {
+    setLoading(true)
+    setError(null)
+    const [stockRes, invoiceRes] = await Promise.all([
+      dealersService.getStockSummary(dealerId),
+      dealersService.getMainInvoices(dealerId),
+    ])
+    setSummary(stockRes.data.summary)
+    setInvoiceCount(invoiceRes?.data?.invoices?.length ?? 0)
+  } catch (e) {
+    setError(e instanceof Error ? e.message : 'Failed to load')
+  } finally {
+    setLoading(false)
+  }
+}, [dealerId])
 
   useEffect(() => { load() }, [load])
 
@@ -160,8 +165,18 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
               {[
                 { label: 'Total Given', value: totalGiven, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/50 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900' },
                 { label: 'Total Sold', value: totalSold, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900' },
-                { label: 'With Dealer', value: totalBalance, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50/50 border-violet-100 dark:bg-violet-950/20 dark:border-violet-900' },
-                { label: 'Products', value: summary.length, color: 'text-foreground', bg: '' },
+               {
+  label: 'Sold in Month',
+  value: summary.reduce((s, i) => s + i.soldInMonth, 0),
+  color: 'text-violet-600 dark:text-violet-400',
+  bg: 'bg-violet-50/50 border-violet-100 dark:bg-violet-950/20 dark:border-violet-900',
+},
+{
+  label: 'Total Invoices',
+  value: invoiceCount,
+  color: 'text-rose-600 dark:text-rose-400',
+  bg: 'bg-rose-50/50 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900',
+},
               ].map((s) => (
                 <Card key={s.label} className={s.bg}>
                   <CardContent className="pt-4 pb-4">

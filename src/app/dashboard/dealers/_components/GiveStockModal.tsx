@@ -413,13 +413,6 @@ export default function GiveStockModal({ open, onClose, onSubmit, dealerName }: 
                       <Input type="date" value={form.date} onChange={set('date')} className="pl-8 h-10 text-sm" />
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Reference No.</Label>
-                    <div className="relative">
-                      <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                      <Input value={form.referenceNo} onChange={set('referenceNo')} placeholder="PO-1234" className="pl-8 h-10 text-sm" />
-                    </div>
-                  </div>
                 </div>
 
                 <div className="space-y-1.5">
