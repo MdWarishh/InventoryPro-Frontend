@@ -102,7 +102,7 @@ export default function StockPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950"
+              className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-400 hover:text-emerald-900 dark:border-emerald-800 dark:text-emerald-10 dark:hover:bg-emerald-950"
               onClick={() => { setEditStockIn(null); setInModal(true) }}
             >
               <Plus className="w-4 h-4" />
@@ -110,7 +110,7 @@ export default function StockPage() {
             </Button>
             <Button
               variant="outline"
-              className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
+              className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-300 hover:text-rose-900 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
               onClick={() => { setEditStockOut(null); setOutModal(true) }}
             >
               <Minus className="w-4 h-4" />
@@ -146,13 +146,15 @@ export default function StockPage() {
                 />
               </div>
               <Button
-                variant={lowStock ? 'secondary' : 'outline'}
+              variant="outline"
                 size="sm"
                 onClick={() => setLowStock(l => !l)}
-                className={cn(
-                  'gap-2',
-                  lowStock && 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
-                )}
+                  className={cn(
+    'gap-2 transition-all',
+    lowStock
+      ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-400 hover:text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/30 dark:hover:text-amber-400'
+      : 'hover:bg-red-500 hover:text-white'
+  )}
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
                 Low Stock

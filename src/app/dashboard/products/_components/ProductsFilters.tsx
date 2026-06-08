@@ -98,15 +98,17 @@ export default function ProductsFilters({
       )}
 
       {/* Low Stock Toggle */}
-      <Button
-        variant={lowStock ? 'secondary' : 'outline'}
-        size="sm"
-        onClick={onLowStockToggle}
-        className={cn(
-          'gap-2 transition-all',
-          lowStock && 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
-        )}
-      >
+     <Button
+  variant="outline"
+  size="sm"
+  onClick={onLowStockToggle}
+  className={cn(
+    'gap-2 transition-all',
+    lowStock
+      ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 hover:text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/30 dark:hover:text-amber-400'
+      : 'hover:bg-green-400 hover:text-foreground'
+  )}
+>
         <AlertTriangle className="w-3.5 h-3.5" />
         Low Stock
         {lowStock && (

@@ -131,7 +131,7 @@ export default function StockOutHistoryTable({ items, fetching, onEdit, onDelete
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    className="h-7 w-7 text-muted-foreground hover:text-white"
                     onClick={() => onEdit(r)}
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -139,7 +139,7 @@ export default function StockOutHistoryTable({ items, fetching, onEdit, onDelete
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    className="h-7 w-7 text-muted-foreground hover:text-white"
                     onClick={() => setDeleteTarget(r)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

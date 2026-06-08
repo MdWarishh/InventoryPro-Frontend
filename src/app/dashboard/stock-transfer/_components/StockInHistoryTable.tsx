@@ -59,7 +59,6 @@ export default function StockInHistoryTable({ items, fetching, onEdit, onDeleteS
             <TableHead>Qty</TableHead>
             <TableHead>Purchase Price</TableHead>
             <TableHead>Dealer</TableHead>
-            <TableHead>Ref No.</TableHead>
             <TableHead>Date</TableHead>
             <TableHead className="w-[80px]">Actions</TableHead>
           </TableRow>
@@ -118,11 +117,6 @@ export default function StockInHistoryTable({ items, fetching, onEdit, onDeleteS
               <TableCell className="text-sm text-muted-foreground">
                 {r.dealer?.name || <span className="text-border">—</span>}
               </TableCell>
-              <TableCell>
-                <code className="text-xs font-mono text-muted-foreground">
-                  {r.referenceNo || '—'}
-                </code>
-              </TableCell>
               <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                 {fmtDate(r.date)}
               </TableCell>
@@ -131,7 +125,7 @@ export default function StockInHistoryTable({ items, fetching, onEdit, onDeleteS
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    className="h-7 w-7 text-muted-foreground hover:text-slate-100"
                     onClick={() => onEdit(r)}
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -139,7 +133,7 @@ export default function StockInHistoryTable({ items, fetching, onEdit, onDeleteS
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    className="h-7 w-7 text-muted-foreground hover:text-white"
                     onClick={() => setDeleteTarget(r)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

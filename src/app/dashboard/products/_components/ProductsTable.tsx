@@ -52,8 +52,6 @@ export default function ProductsTable({ products = [], onEdit, onDelete }: Produ
             <TableHead>SKU</TableHead>
             <TableHead>Branch</TableHead>
             <TableHead>Category</TableHead>
-            <TableHead>Purchase Price</TableHead>
-            <TableHead>Sale Price</TableHead>
             <TableHead className="text-center">Stock</TableHead>
             <TableHead className="text-right w-[100px]">Actions</TableHead>
           </TableRow>
@@ -130,15 +128,6 @@ export default function ProductsTable({ products = [], onEdit, onDelete }: Produ
                     )}
                   </TableCell>
 
-                  {/* Purchase Price */}
-                  <TableCell className="text-sm text-muted-foreground font-medium">
-                    ₹{(product.purchasePrice ?? 0).toLocaleString('en-IN')}
-                  </TableCell>
-
-                  {/* Selling Price */}
-                  <TableCell className="text-sm font-semibold text-foreground">
-                    ₹{(product.sellingPrice ?? 0).toLocaleString('en-IN')}
-                  </TableCell>
 
                   {/* Stock */}
                   <TableCell className="text-center">
@@ -151,7 +140,7 @@ export default function ProductsTable({ products = [], onEdit, onDelete }: Produ
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        className="h-8 w-8 text-muted-foreground hover:text-success"
                         onClick={() => onEdit(product)}
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -159,7 +148,7 @@ export default function ProductsTable({ products = [], onEdit, onDelete }: Produ
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 text-muted-foreground hover:text-popover"
                         onClick={() => onDelete(product)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />

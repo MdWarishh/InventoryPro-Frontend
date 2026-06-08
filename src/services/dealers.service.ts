@@ -118,6 +118,18 @@ export const dealersService = {
     return data as { data: DealerInvoice }
   },
 
+  createSalesReturn: async (id: string, d: {
+  productId: string
+  branchId: string
+  quantity: number
+  serialNumberIds?: string[]
+  notes?: string
+  date?: string
+}) => {
+  const { data } = await apiClient.post(`/dealers/${id}/stock-return`, d)
+  return data as { data: { id: string }; message: string }
+},
+ 
   // ── NEW: Unbilled stock for invoice generation ──────────────────────────
   // GET /dealers/:id/unbilled-stock
   // Returns dealer info + products grouped with their UNBILLED serials

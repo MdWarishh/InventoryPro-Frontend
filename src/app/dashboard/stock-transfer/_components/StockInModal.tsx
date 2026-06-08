@@ -357,13 +357,6 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
                 <Input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
               </div>
 
-
-              <div className="space-y-1.5">
-                <Label>Source Note</Label>
-                <Input placeholder="Supplier name, notes…" value={form.sourceNote}
-                  onChange={e => set('sourceNote', e.target.value)} />
-              </div>
-
               <div className="col-span-2 space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                   Brand / Manufacturer

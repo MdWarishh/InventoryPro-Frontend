@@ -21,7 +21,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const { user, hasPermission } = useAuth()
   const unreadCount = useNotificationStore((s) => s.unreadCount)
-
+  const [logoError, setLogoError] = useState(false);
   const {
     branches,
     selectedBranchId,
@@ -102,21 +102,34 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
     >
       {/* ── Logo ── */}
-      <div
-        className={cn(
-          'flex items-center h-16 px-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0',
-          collapsed ? 'justify-center' : 'gap-3'
-        )}
-      >
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-600">
-          <Package className="h-4 w-4 text-white" strokeWidth={2} />
-        </div>
-        {!collapsed && (
-          <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
-            InvenTrack Pro
-          </span>
-        )}
-      </div>
+    
+ <div
+      className={cn(
+        'flex items-center h-16 px-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0',
+        collapsed ? 'justify-center' : 'gap-3'
+      )}
+    >
+      {/* Logo */}
+      {!logoError && (
+        <img
+          src="/logo.jpeg"
+          alt="Logo"
+          onError={() => setLogoError(true)}
+          className={cn(
+  'object-contain flex-shrink-0',
+  collapsed ? 'h-10 w-14' : 'h-12 w-auto max-w-[220px]'
+)}
+        />
+      )}
+
+      {/* Fallback Name (only if logo fails) */}
+      {logoError && !collapsed && (
+        <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+          Limra Hearing & Clinic
+        </span>
+      )}
+    </div>
+  
 
       {/* ── Branch Selector (SUPER_ADMIN only) ── */}
       {user?.role === 'SUPER_ADMIN' && (

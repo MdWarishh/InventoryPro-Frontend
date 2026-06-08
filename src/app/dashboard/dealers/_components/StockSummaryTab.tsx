@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Package, TrendingUp, AlertCircle, Loader2, Plus, RefreshCw, BarChart3, Boxes } from 'lucide-react'
+import { Package, TrendingUp, AlertCircle, Plus, RefreshCw, BarChart3, Boxes, Undo2 } from 'lucide-react'
 import { dealersService } from '@/services/dealers.service'
 import type {
   StockSummaryItem,
@@ -10,6 +10,7 @@ import type {
 } from '@/types/dealers.types'
 import GiveStockModal from './GiveStockModal'
 import RecordSaleModal from './RecordSaleModal'
+import SalesReturnModal, { type CreateSalesReturnPayload } from './SalesReturnModal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -49,24 +50,25 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [giveOpen, setGiveOpen] = useState(false)
   const [saleOpen, setSaleOpen] = useState(false)
+  const [returnOpen, setReturnOpen] = useState(false)
   const [invoiceCount, setInvoiceCount] = useState(0)
 
-const load = useCallback(async () => {
-  try {
-    setLoading(true)
-    setError(null)
-    const [stockRes, invoiceRes] = await Promise.all([
-      dealersService.getStockSummary(dealerId),
-      dealersService.getMainInvoices(dealerId),
-    ])
-    setSummary(stockRes.data.summary)
-    setInvoiceCount(invoiceRes?.data?.invoices?.length ?? 0)
-  } catch (e) {
-    setError(e instanceof Error ? e.message : 'Failed to load')
-  } finally {
-    setLoading(false)
-  }
-}, [dealerId])
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const [stockRes, invoiceRes] = await Promise.all([
+        dealersService.getStockSummary(dealerId),
+        dealersService.getMainInvoices(dealerId),
+      ])
+      setSummary(stockRes.data.summary)
+      setInvoiceCount(invoiceRes?.data?.invoices?.length ?? 0)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load')
+    } finally {
+      setLoading(false)
+    }
+  }, [dealerId])
 
   useEffect(() => { load() }, [load])
 
@@ -75,9 +77,16 @@ const load = useCallback(async () => {
     setGiveOpen(false)
     load()
   }
+
   const handleRecordSale = async (data: CreateDealerStockOutPayload) => {
     await dealersService.createStockOut(dealerId, data)
     setSaleOpen(false)
+    load()
+  }
+
+  const handleSalesReturn = async (data: CreateSalesReturnPayload) => {
+    await dealersService.createSalesReturn(dealerId, data)
+    setReturnOpen(false)
     load()
   }
 
@@ -85,7 +94,6 @@ const load = useCallback(async () => {
   const totalSold = summary.reduce((s, i) => s + i.sold, 0)
   const totalBalance = summary.reduce((s, i) => s + i.balance, 0)
 
-  // Pie chart data
   const pieData = [
     { name: 'Sold', value: totalSold, color: 'hsl(142 71% 45%)' },
     { name: 'With Dealer', value: totalBalance, color: 'hsl(221 83% 53%)' },
@@ -121,7 +129,7 @@ const load = useCallback(async () => {
 
         {/* ── Action Bar ── */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" onClick={() => setGiveOpen(true)} className="gap-1.5">
               <Package className="w-3.5 h-3.5" />
               Give Stock
@@ -136,8 +144,22 @@ const load = useCallback(async () => {
               <TrendingUp className="w-3.5 h-3.5" />
               Record Sale
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setReturnOpen(true)}
+              disabled={totalBalance === 0 || loading}
+              className="gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/40 disabled:opacity-40"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+              Sales Return
+            </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={load} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost" size="icon"
+            onClick={load}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          >
             <RefreshCw className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -163,20 +185,30 @@ const load = useCallback(async () => {
             {/* ── Stats Cards ── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: 'Total Given', value: totalGiven, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/50 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900' },
-                { label: 'Total Sold', value: totalSold, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900' },
-               {
-  label: 'Sold in Month',
-  value: summary.reduce((s, i) => s + i.soldInMonth, 0),
-  color: 'text-violet-600 dark:text-violet-400',
-  bg: 'bg-violet-50/50 border-violet-100 dark:bg-violet-950/20 dark:border-violet-900',
-},
-{
-  label: 'Total Invoices',
-  value: invoiceCount,
-  color: 'text-rose-600 dark:text-rose-400',
-  bg: 'bg-rose-50/50 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900',
-},
+                {
+                  label: 'Total Given',
+                  value: totalGiven,
+                  color: 'text-blue-600 dark:text-blue-400',
+                  bg: 'bg-blue-50/50 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900',
+                },
+                {
+                  label: 'Total Sold',
+                  value: totalSold,
+                  color: 'text-emerald-600 dark:text-emerald-400',
+                  bg: 'bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900',
+                },
+                {
+                  label: 'Sold in Month',
+                  value: summary.reduce((s, i) => s + i.soldInMonth, 0),
+                  color: 'text-violet-600 dark:text-violet-400',
+                  bg: 'bg-violet-50/50 border-violet-100 dark:bg-violet-950/20 dark:border-violet-900',
+                },
+                {
+                  label: 'Total Invoices',
+                  value: invoiceCount,
+                  color: 'text-rose-600 dark:text-rose-400',
+                  bg: 'bg-rose-50/50 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900',
+                },
               ].map((s) => (
                 <Card key={s.label} className={s.bg}>
                   <CardContent className="pt-4 pb-4">
@@ -217,13 +249,14 @@ const load = useCallback(async () => {
                           ))}
                         </Pie>
                         <Tooltip
-                          contentStyle={{ borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', fontSize: 12 }}
+                          contentStyle={{
+                            borderRadius: 8,
+                            border: '1px solid hsl(var(--border))',
+                            background: 'hsl(var(--background))',
+                            fontSize: 12,
+                          }}
                         />
-                        <Legend
-                          iconType="circle"
-                          iconSize={8}
-                          wrapperStyle={{ fontSize: 12 }}
-                        />
+                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="mt-1 text-center">
@@ -319,6 +352,14 @@ const load = useCallback(async () => {
         open={saleOpen}
         onClose={() => setSaleOpen(false)}
         onSubmit={handleRecordSale}
+        dealerName={dealerName}
+        dealerId={dealerId}
+        stockSummary={summary}
+      />
+      <SalesReturnModal
+        open={returnOpen}
+        onClose={() => setReturnOpen(false)}
+        onSubmit={handleSalesReturn}
         dealerName={dealerName}
         dealerId={dealerId}
         stockSummary={summary}
