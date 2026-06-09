@@ -17,6 +17,7 @@ export interface CategoriesResponse {
 
 export interface CategoryFilters {
   search?: string
+  branchId?: string
 }
 
 export interface CreateCategoryPayload {

@@ -26,9 +26,10 @@ interface ProductOption {
   id: string
   name: string
   sku: string
-  purchasePrice: number
+   purchasePrice?: number
   sellingPrice: number
   hasSerialNumbers?: boolean
+  currentStock?: number  
 }
 
 interface Props {
@@ -242,7 +243,7 @@ export default function GiveStockModal({ open, onClose, onSubmit, dealerName }: 
                         <Tag className="w-2.5 h-2.5" />
                         MRP ₹{selectedProduct.sellingPrice.toLocaleString('en-IN')}
                       </span>
-                      <span className="text-muted-foreground">· Cost ₹{selectedProduct.purchasePrice.toLocaleString('en-IN')}</span>
+                     <span className="text-muted-foreground">· Cost ₹{(selectedProduct.purchasePrice ?? 0).toLocaleString('en-IN')}</span>
                     </div>
                   )}
                 </div>

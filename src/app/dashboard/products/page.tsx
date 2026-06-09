@@ -12,6 +12,7 @@ import type { Product, CreateProductPayload } from '@/types/products.types'
 import type { Category } from '@/types/categories.types'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
 
 const LIMIT = 20
 
@@ -34,6 +35,7 @@ export default function ProductsPage() {
   const [fetching, setFetching] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+   const { branchId: globalBranchId, queryKey } = useBranchFilter() 
 
   const fetchProducts = useCallback(async () => {
     setFetching(true)
@@ -43,7 +45,7 @@ export default function ProductsPage() {
         limit: LIMIT,
         search: search || undefined,
         categoryId: categoryId || undefined,
-        branchId: branchId || undefined,
+       branchId: globalBranchId || branchId || undefined, 
         lowStock: lowStock || undefined,
       })
       setProducts(result.products)
@@ -54,11 +56,13 @@ export default function ProductsPage() {
     } finally {
       setFetching(false)
     }
-  }, [page, search, categoryId, branchId, lowStock])
+  }, [page, search, categoryId, globalBranchId, lowStock])
 
-  useEffect(() => {
-    categoriesService.getAll().then(setCategories).catch(console.error)
-  }, [])
+useEffect(() => {
+  categoriesService.getAll({ branchId: globalBranchId || undefined })
+    .then(setCategories)
+    .catch(console.error)
+}, [globalBranchId])  
 
   useEffect(() => {
     fetchProducts()
@@ -66,12 +70,12 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, categoryId, branchId, lowStock])
+  }, [search, categoryId, globalBranchId, lowStock])
 
-  const handleCreate = async (payload: CreateProductPayload) => {
-    setSubmitting(true)
-    try {
-      await productsService.create(payload)
+ const handleCreate = async (payload: CreateProductPayload, branchIds: string[]) => {
+  setSubmitting(true)
+  try {
+    await productsService.create(payload, branchIds)
       toast.success('Product created successfully.')
       setAddOpen(false)
       fetchProducts()
@@ -82,7 +86,7 @@ export default function ProductsPage() {
     }
   }
 
-  const handleUpdate = async (payload: CreateProductPayload) => {
+const handleUpdate = async (payload: CreateProductPayload, _branchIds: string[]) => {
     if (!editProduct) return
     setSubmitting(true)
     try {

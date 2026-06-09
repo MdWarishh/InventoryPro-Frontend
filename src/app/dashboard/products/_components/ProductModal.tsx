@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import type { Product, CreateProductPayload } from '@/types/products.types'
 import type { Category } from '@/types/categories.types'
 import {
@@ -22,6 +23,10 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { BranchWithStats } from '@/types/branches.types'
+import { branchesService } from '@/services/branches.service'
+import { Badge } from '@/components/ui/badge'    
+
 
 interface Dealer {
   id: string
@@ -31,7 +36,7 @@ interface Dealer {
 interface ProductModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (payload: CreateProductPayload) => Promise<void>
+  onSubmit: (payload: CreateProductPayload, branchIds: string[]) => Promise<void>
   categories: Category[]
   dealers?: Dealer[]
   editProduct?: Product | null
@@ -57,8 +62,20 @@ export default function ProductModal({
   editProduct,
   loading,
 }: ProductModalProps) {
+    const { user } = useAuth() 
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'   
   const [form, setForm] = useState<CreateProductPayload>(defaultForm)
   const [dealerId, setDealerId] = useState('')
+    const [branches, setBranches] = useState<BranchWithStats[]>([])
+  const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]) 
+  
+
+   useEffect(() => {
+    if (open && isSuperAdmin) {
+      branchesService.getAll().then(setBranches).catch(console.error)
+    }
+  }, [open, isSuperAdmin])
+
 
   useEffect(() => {
     if (editProduct) {
@@ -80,13 +97,23 @@ export default function ProductModal({
     }
   }, [editProduct, open])
 
+  const toggleBranch = (id: string) => {
+    setSelectedBranchIds(prev =>
+      prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
+    )
+  }
+
+    const allSelected = selectedBranchIds.length === 0
+
   const set = (field: keyof CreateProductPayload, value: any) =>
     setForm((prev) => ({ ...prev, [field]: value }))
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await onSubmit(form)
-  }
+   
+// ✅ Yeh hona chahiye
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  await onSubmit(form, selectedBranchIds)
+}
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -145,6 +172,75 @@ export default function ProductModal({
           </div>
 
           <Separator />
+
+            {/* ── Branch Selector — SUPER_ADMIN only ── */}
+          {isSuperAdmin && !editProduct && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>
+                  Add to Branch
+                  <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(select none = all branches)</span>
+                </Label>
+                {selectedBranchIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBranchIds([])}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Clear (all branches)
+                  </button>
+                )}
+              </div>
+
+              {/* All Branches pill */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBranchIds([])}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                    allSelected
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300'
+                      : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  All Branches
+                  {allSelected && (
+                    <Badge className="ml-1.5 h-4 px-1 text-[9px] bg-indigo-600 text-white">✓</Badge>
+                  )}
+                </button>
+
+                {branches.map((b) => {
+                  const selected = selectedBranchIds.includes(b.id)
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => toggleBranch(b.id)}
+                      className={`inline-flex items-center px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                        selected
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300'
+                          : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {b.name}
+                      {selected && (
+                        <Badge className="ml-1.5 h-4 px-1 text-[9px] bg-indigo-600 text-white">✓</Badge>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                {allSelected
+                  ? 'Product will be added to all branches'
+                  : `Adding to ${selectedBranchIds.length} branch${selectedBranchIds.length > 1 ? 'es' : ''} only`
+                }
+              </p>
+            </div>
+          )}
+
+          {isSuperAdmin && !editProduct && <Separator />}
 
           {/* Unit + Min Stock */}
           <div className="grid grid-cols-2 gap-3">

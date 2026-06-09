@@ -1,5 +1,10 @@
 import api from '@/lib/axios'
 import type { CreateInvoicePayload, Invoice, PaginatedInvoices } from '@/types/invoices.types'
+import { stockService } from '@/services/stock-transfer.service'
+
+// Re-export for invoice page — sirf stock > 0 wale products
+export const getProductsInStock = (params?: { search?: string; branchId?: string }) =>
+  stockService.getProductsInStock(params)
 
 // GET /api/invoices
 export const getAllInvoices = async (params?: {

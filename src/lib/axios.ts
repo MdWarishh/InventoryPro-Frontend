@@ -35,12 +35,28 @@ export const tokenStorage = {
 
 // ─── Request Interceptor — Attach Access Token ────────────────────────────────
 
+// axios.ts — request interceptor mein ye add karo
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = tokenStorage.getAccess()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // ── Branch filter inject karo ──
+    const branchState = localStorage.getItem('active-branch-v1')
+    if (branchState) {
+      try {
+        const parsed = JSON.parse(branchState)
+        const branchId = parsed?.state?.selectedBranchId
+        if (branchId) {
+          config.headers['x-branch-id'] = branchId  // header se bhejo
+          // Ya query param chahiye to:
+          // config.params = { ...config.params, branchId }
+        }
+      } catch {}
+    }
+
     return config
   },
   (error) => Promise.reject(error)

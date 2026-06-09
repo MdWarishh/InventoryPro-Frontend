@@ -149,15 +149,25 @@ export const dealersService = {
 // ─── PRODUCTS & BRANCHES (dropdowns ke liye) ─────────────────────────────────
 
 export const productsService = {
-  getAll: async () => {
-    const { data } = await apiClient.get('/products?limit=500&isActive=true')
+  // Sirf wahi products jinका currentStock > 0 hai — GiveStockModal dropdown ke liye
+  getAll: async (params?: { branchId?: string; search?: string }) => {
+    const q = params
+      ? '?' + new URLSearchParams(
+          Object.entries(params)
+            .filter(([, v]) => v !== undefined && v !== '')
+            .map(([k, v]) => [k, String(v)])
+        ).toString()
+      : ''
+    const { data } = await apiClient.get(`/stock/products-in-stock${q}`)
     return data as {
       data: {
         id: string
         name: string
         sku: string
-        purchasePrice: number
+        purchasePrice?: number
         sellingPrice: number
+        hasSerialNumbers?: boolean
+        currentStock: number
       }[]
     }
   },

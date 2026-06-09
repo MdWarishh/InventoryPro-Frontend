@@ -14,6 +14,21 @@ import type {
   UpdateStockOutPayload,
 } from '@/types/stock-transfer.types'
 
+// ── Inline type (stock > 0 wale products) ────────────────────────────────────
+export interface ProductInStock {
+  id: string
+  name: string
+  sku: string
+  brand?: string
+  sellingPrice: number
+  purchasePrice?: number
+  hasSerialNumbers: boolean
+  currentStock: number
+  branchId: string
+  gstRate?: number
+  category?: { id: string; name: string; color?: string }
+}
+
 export const stockService = {
   stockIn: async (payload: StockInPayload): Promise<StockInRecord> => {
     const { data } = await api.post('/stock/in', payload)
@@ -61,5 +76,15 @@ export const stockService = {
 
   transferStock: async (payload: TransferStockPayload): Promise<void> => {
     await api.post('/stock/transfer', payload)
+  },
+
+  // ── Sirf wahi products jinका stock > 0 hai (invoice/dealer dropdown ke liye) ──
+  getProductsInStock: async (params?: {
+    branchId?: string
+    categoryId?: string
+    search?: string
+  }): Promise<ProductInStock[]> => {
+    const { data } = await api.get('/stock/products-in-stock', { params })
+    return Array.isArray(data.data) ? data.data : []
   },
 }

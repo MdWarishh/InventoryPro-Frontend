@@ -31,6 +31,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { useAuth } from '@/hooks/useAuth'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
 
 // ── Preset Colors ─────────────────────────────────────────────────────────────
 const PRESET_COLORS = [
@@ -379,28 +381,33 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const { user } = useAuth()
+  const { branchId: globalBranchId } = useBranchFilter() 
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3200)
   }
-
-  const fetchCategories = async () => {
-    try {
-      setFetching(true)
-      const data = await categoriesService.getAll({ search: search || undefined })
-      setCategories(data)
-    } catch {
-      showToast('Failed to load categories', 'error')
-    } finally {
-      setFetching(false)
-    }
+// fetchCategories function update karo
+const fetchCategories = async () => {
+  try {
+    setFetching(true)
+    const data = await categoriesService.getAll({ 
+      search: search || undefined,
+      branchId: globalBranchId || undefined,  // ← ye add karo
+    })
+    setCategories(data)
+  } catch {
+    showToast('Failed to load categories', 'error')
+  } finally {
+    setFetching(false)
   }
+}
 
-  useEffect(() => {
-    const t = setTimeout(fetchCategories, 300)
-    return () => clearTimeout(t)
-  }, [search])
+useEffect(() => {
+  const t = setTimeout(fetchCategories, 300)
+  return () => clearTimeout(t)
+}, [search, globalBranchId])  
 
   const handleSave = async (payload: CreateCategoryPayload | UpdateCategoryPayload) => {
     try {

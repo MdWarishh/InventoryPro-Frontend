@@ -2,13 +2,13 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createInvoice } from '@/services/invoice.service'
+import { createInvoice, getProductsInStock } from '@/services/invoice.service'
 import type { CreateInvoicePayload } from '@/types/invoices.types'
 import { productsService } from '@/services/products.service'
 import { serialService } from '@/services/serial.service'
 import { dealersService } from '@/services/dealers.service'
 import { useAuthStore } from '@/store/auth.store'
-import type { Product } from '@/types/products.types'
+import type { ProductInStock } from '@/services/stock-transfer.service'
 import type { SerialNumber } from '@/types/serial.types'
 import type { Dealer } from '@/types/dealers.types'
 import settingsService from '@/services/settings.service'
@@ -79,7 +79,7 @@ export default function CreateInvoicePage() {
 
   // Product search state — sirf non-dealer mode mein use hota hai
   const [productSearch,  setProductSearch]  = useState<string[]>([''])
-  const [productResults, setProductResults] = useState<Product[][]>([[]])
+ const [productResults, setProductResults] = useState<ProductInStock[][]>([[]])
   const [showDropdown,   setShowDropdown]   = useState<boolean[]>([false])
   const [dropLoading,    setDropLoading]    = useState<boolean[]>([false])
   const searchTimers = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -227,17 +227,17 @@ useEffect(() => {
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(n)
 
   // ── Normal (non-dealer) mode ke liye product search ──────────────────────
-  const fetchProducts = useCallback(async (query: string, idx: number) => {
-    setDropLoading(prev => { const n = [...prev]; n[idx] = true; return n })
-    try {
-      const res = await productsService.getAll({ search: query || undefined, limit: 20 })
-      setProductResults(prev => { const n = [...prev]; n[idx] = res.products ?? []; return n })
-    } catch {
-      setProductResults(prev => { const n = [...prev]; n[idx] = []; return n })
-    } finally {
-      setDropLoading(prev => { const n = [...prev]; n[idx] = false; return n })
-    }
-  }, [])
+ const fetchProducts = useCallback(async (query: string, idx: number) => {
+  setDropLoading(prev => { const n = [...prev]; n[idx] = true; return n })
+  try {
+   const res = await getProductsInStock({ search: query || undefined, branchId: user?.branchId ?? undefined })
+    setProductResults(prev => { const n = [...prev]; n[idx] = res ?? []; return n })
+  } catch {
+    setProductResults(prev => { const n = [...prev]; n[idx] = []; return n })
+  } finally {
+    setDropLoading(prev => { const n = [...prev]; n[idx] = false; return n })
+  }
+}, [user?.branchId])
 
   const handleSearchChange = (idx: number, val: string) => {
     setProductSearch(prev => { const n = [...prev]; n[idx] = val; return n })
@@ -259,9 +259,8 @@ useEffect(() => {
     }, 200)
   }
 
-  // ── Normal mode: product select → AVAILABLE branch serials fetch ──────────
-  // Dealer mode mein ye call nahi hota — serials already pre-filled hain
-  const selectProduct = async (idx: number, product: Product) => {
+
+  const selectProduct = async (idx: number, product: ProductInStock) => {
     setItems(prev => {
       const n = [...prev]
       n[idx] = {
@@ -270,7 +269,7 @@ useEffect(() => {
         productName:       product.name,
         sku:               product.sku,
         sellingPrice:      product.sellingPrice ?? 0,
-        gstRate:           product.gstRate,
+        gstRate: product.gstRate ?? 18,
         hasSerialNumbers:  product.hasSerialNumbers,
         selectedSerialIds: [],
         availableSerials:  [],

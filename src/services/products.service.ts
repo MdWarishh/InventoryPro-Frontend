@@ -35,20 +35,26 @@ export const productsService = {
     return data.data
   },
 
-  create: async (payload: CreateProductPayload): Promise<Product> => {
-    const formData = new FormData()
-    Object.entries(payload).forEach(([key, value]) => {
-      if (key === 'images' && Array.isArray(value)) {
-        value.forEach((file: File) => formData.append('images', file))
-      } else if (value !== undefined && value !== null) {
-        formData.append(key, String(value))
-      }
-    })
-    const { data } = await apiClient.post<ApiSuccess<Product>>('/products', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    return data.data
-  },
+ // products.service.ts — create function mein yeh add karo
+create: async (payload: CreateProductPayload, branchIds: string[] = []): Promise<Product> => {
+  const formData = new FormData()
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === 'images' && Array.isArray(value)) {
+      value.forEach((file: File) => formData.append('images', file))
+    } else if (value !== undefined && value !== null) {
+      formData.append(key, String(value))
+    }
+  })
+
+  if (branchIds.length > 0) {
+  formData.append('branchIds', branchIds.join(','))
+}
+
+  const { data } = await apiClient.post<ApiSuccess<Product>>('/products', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data.data
+},
 
   update: async (id: string, payload: UpdateProductPayload): Promise<Product> => {
     const formData = new FormData()

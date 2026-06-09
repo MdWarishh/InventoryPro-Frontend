@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 const fmtINR = (n: number) => {
@@ -105,6 +106,7 @@ const PIE_COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { branchId: globalBranchId } = useBranchFilter()
 
   const {
     data: stats,
@@ -112,17 +114,17 @@ export default function DashboardPage() {
     refetch: refetchStats,
     isFetching: statsFetching,
   } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: () => reportsService.getDashboard(),
+    queryKey: ['dashboard-stats', globalBranchId],
+    queryFn: () => reportsService.getDashboard(globalBranchId || undefined),
     staleTime: 2 * 60 * 1000,
   })
 
   const { data: salesReport, isLoading: salesLoading } = useQuery({
-    queryKey: ['dashboard-sales-chart'],
+    queryKey: ['dashboard-sales-chart', globalBranchId],
     queryFn: () => {
       const endDate   = new Date().toISOString().split('T')[0]
       const startDate = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
-      return reportsService.getSales({ startDate, endDate, groupBy: 'day' })
+      return reportsService.getSales({ startDate, endDate, groupBy: 'day', branchId: globalBranchId || undefined })
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -146,8 +148,8 @@ export default function DashboardPage() {
   })
 
   const { data: lowStockData, isLoading: lowStockLoading } = useQuery({
-    queryKey: ['low-stock-dashboard'],
-    queryFn: () => reportsService.getLowStock(),
+    queryKey: ['low-stock-dashboard', globalBranchId],
+    queryFn: () => reportsService.getLowStock(globalBranchId || undefined),
     staleTime: 5 * 60 * 1000,
   })
 
