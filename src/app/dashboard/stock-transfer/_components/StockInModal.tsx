@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { stockService } from '@/services/stock-transfer.service'
 import { productsService } from '@/services/products.service'
 import { branchesService } from '@/services/branches.service'
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Hash, X, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, Hash, X, CheckCircle2, Loader2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StockInRecord } from '@/types/stock-transfer.types'
 
@@ -49,10 +49,13 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const [products, setProducts] = useState<ProductOption[]>([])
+ const [products, setProducts] = useState<ProductOption[]>([])
+const [productSearch, setProductSearch] = useState('')
+const [loadingProducts, setLoadingProducts] = useState(false)
+const [loadingDropdowns, setLoadingDropdowns] = useState(false)
+const searchDebounceRef = useRef<NodeJS.Timeout>()
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [dealers, setDealers] = useState<DealerOption[]>([])
-  const [loadingDropdowns, setLoadingDropdowns] = useState(false)
 
   const [serialInput, setSerialInput] = useState('')
   const [serialNumbers, setSerialNumbers] = useState<string[]>([])
@@ -65,29 +68,42 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
   const remaining = qty - serialNumbers.length
 
   // Load dropdowns on open
-  useEffect(() => {
-    if (!open) return
-    setLoadingDropdowns(true)
-    Promise.all([
-      productsService.getAll({ limit: 200 }),
-      branchesService.getAll(),
-      dealersService.getAll({ limit: 200 }),
-    ])
-      .then(([p, b, d]) => {
-        setProducts((p.products ?? []) as ProductOption[])
-        setBranches((Array.isArray(b) ? b : []) as BranchOption[])
-        setDealers((d.data ?? []) as DealerOption[])
-      })
-      .catch(() => {})
-      .finally(() => setLoadingDropdowns(false))
-  }, [open])
+useEffect(() => {
+  if (!open) return
+  setLoadingDropdowns(true)
+  Promise.all([
+    branchesService.getAll(),
+    dealersService.getAll({ limit: 200 }),
+  ])
+    .then(([b, d]) => {
+      setBranches((Array.isArray(b) ? b : []) as BranchOption[])
+      setDealers((d.data ?? []) as DealerOption[])
+    })
+    .catch(() => {})
+    .finally(() => setLoadingDropdowns(false))
+}, [open])
+
+useEffect(() => {
+  clearTimeout(searchDebounceRef.current)
+  if (!open) return
+  searchDebounceRef.current = setTimeout(async () => {
+    setLoadingProducts(true)
+    try {
+      const res = await productsService.getAll({ limit: 20, search: productSearch || undefined })
+      setProducts((res.products ?? []) as ProductOption[])
+    } catch {}
+    finally { setLoadingProducts(false) }
+  }, 300)
+  return () => clearTimeout(searchDebounceRef.current)
+}, [productSearch, open])
 
   // Pre-fill form when editRecord changes or modal opens
   useEffect(() => {
-    if (!open) {
-      setForm(INIT); setSerialNumbers([]); setSerialInput(''); setError('')
-      return
-    }
+if (!open) {
+  setForm(INIT); setSerialNumbers([]); setSerialInput(''); setError('')
+  setProductSearch(''); setProducts([])
+  return
+}
     if (editRecord) {
       setForm({
         productId:     editRecord.productId ?? '',
@@ -211,18 +227,42 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
                     <Badge variant="secondary" className="ml-auto text-[10px]">locked</Badge>
                   </div>
                 ) : (
-                  <Select value={form.productId} onValueChange={v => set('productId', v)} disabled={loadingDropdowns} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder={loadingDropdowns ? 'Loading…' : 'Select product'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} ({p.sku}){p.hasSerialNumbers ? ' 🔢' : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+               <div className="space-y-1.5">
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+    <Input
+      placeholder="Search product…"
+      value={productSearch}
+      onChange={e => { setProductSearch(e.target.value); set('productId', '') }}
+      className="pl-8 pr-3"
+    />
+    {loadingProducts && (
+      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+    )}
+  </div>
+  {products.length > 0 && (
+    <div className="border border-border rounded-md bg-background max-h-44 overflow-y-auto divide-y divide-border">
+      {products.map(p => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => { set('productId', p.id); setProductSearch(`${p.name} (${p.sku})`) }}
+          className={cn(
+            'w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex items-center justify-between gap-2',
+            form.productId === p.id && 'bg-primary/5 text-primary font-medium'
+          )}
+        >
+          <span>{p.name} <span className="text-muted-foreground font-mono text-xs">({p.sku})</span></span>
+          {p.hasSerialNumbers && <span className="text-xs">🔢</span>}
+        </button>
+      ))}
+    </div>
+  )}
+  {productSearch && products.length === 0 && !loadingProducts && (
+    <p className="text-xs text-muted-foreground px-1">No products found</p>
+  )}
+</div>
+
                 )}
               </div>
 

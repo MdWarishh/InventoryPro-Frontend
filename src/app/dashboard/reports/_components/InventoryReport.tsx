@@ -216,7 +216,7 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
                 <table className="w-full min-w-[800px]">
                   <thead>
                     <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                      {['Product', 'Category', 'Stock', 'Sale Price', 'Value', 'Status'].map((h, i) => (
+                      {['Product', 'Category', 'Stock', 'Purchase Price', 'Purchase Value', 'Sale Price', 'Sale Value', 'Status'].map((h, i) => (
                         <th key={h} className={`px-5 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i >= 2 ? 'text-right' : 'text-left'}`}>
                           {h}
                         </th>
@@ -235,7 +235,18 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
                           </td>
                           <td className="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">{item.category}</td>
                           <td className="px-5 py-3.5 text-sm text-gray-900 dark:text-gray-100 text-right font-medium">{item.currentStock.toLocaleString('en-IN')}</td>
+                            {/* ✅ NEW — Purchase Price */}
+  <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">
+    {fmt(item.purchasePrice)}
+  </td>
+
+  {/* ✅ NEW — Purchase Value */}
+  <td className="px-5 py-3.5 text-sm font-semibold text-orange-600 dark:text-orange-400 text-right">
+    {fmt(item.purchaseValue)}
+  </td>
+  
                           <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.sellingPrice)}</td>
+
                           <td className="px-5 py-3.5 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">{fmt(item.sellingValue)}</td>
                           <td className="px-5 py-3.5 text-right">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${

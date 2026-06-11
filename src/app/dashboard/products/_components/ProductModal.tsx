@@ -140,22 +140,22 @@ const handleSubmit = async (e: React.FormEvent) => {
           {/* SKU + Category */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="sku">SKU</Label>
+              <Label htmlFor="sku">SKU <span className="text-destructive">*</span></Label>
               <Input
                 id="sku"
                 placeholder="e.g. SAM-GS24"
                 value={form.sku || ''}
                 onChange={(e) => set('sku', e.target.value)}
+                required
               />
             </div>
             <div className="space-y-1.5">
               <Label>
-                Category <span className="text-destructive">*</span>
+                Category 
               </Label>
               <Select
                 value={form.categoryId || ''}
                 onValueChange={(v) => set('categoryId', v)}
-                required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
