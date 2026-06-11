@@ -61,7 +61,9 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loadingSerials, setLoadingSerials] = useState(false)
 
-  const selectedProduct = products.find(p => p.id === form.productId)
+  // ✅ FIX: selectedProduct alag state — products array re-fetch se independent
+  const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null)
+
   const needsSerials = selectedProduct?.hasSerialNumbers
     ?? (isEdit ? !!(editRecord?.serialNumbers?.length) : false)
   const qty = Number(form.quantity) || 0
@@ -81,6 +83,7 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
   useEffect(() => {
     clearTimeout(searchDebounceRef.current)
     if (!open) return
+    if (form.productId) return // ✅ product selected hai, dobara fetch mat karo
     searchDebounceRef.current = setTimeout(async () => {
       setLoadingProducts(true)
       try {
@@ -90,7 +93,7 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
       finally { setLoadingProducts(false) }
     }, 300)
     return () => clearTimeout(searchDebounceRef.current)
-  }, [productSearch, open])
+  }, [productSearch, open, form.productId])
 
   // ── Pre-fill or reset form ─────────────────────────────────────────────────
   useEffect(() => {
@@ -101,6 +104,7 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
       setError('')
       setProductSearch('')
       setProducts([])
+      setSelectedProduct(null) // ✅
       return
     }
     if (editRecord) {
@@ -115,6 +119,16 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
         date:          toDateInput(editRecord.date),
         brand:         editRecord.product?.brand ?? '',
       })
+      // ✅ Edit mode mein selectedProduct directly set karo
+      if (editRecord.product) {
+        setSelectedProduct({
+          id:               editRecord.productId ?? '',
+          name:             editRecord.product.name ?? '',
+          sku:              editRecord.product.sku ?? '',
+          hasSerialNumbers: !!(editRecord.serialNumbers?.length),
+          brand:            editRecord.product.brand ?? '',
+        })
+      }
       const existingIds = (editRecord.serialNumbers ?? []).map(s => s.id)
       setSelectedIds(existingIds)
     } else {
@@ -122,6 +136,7 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
       setAvailableSerials([])
       setSelectedIds([])
       setError('')
+      setSelectedProduct(null) // ✅
     }
   }, [open, editRecord])
 
@@ -158,9 +173,8 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
   // ── Auto-fill brand (create mode only) ────────────────────────────────────
   useEffect(() => {
     if (isEdit) return
-    const p = products.find(x => x.id === form.productId)
-    set('brand', p?.brand || '')
-  }, [form.productId, products, isEdit])
+    set('brand', selectedProduct?.brand || '')
+  }, [selectedProduct, isEdit])
 
   // ── Trim selectedIds if qty reduced ───────────────────────────────────────
   useEffect(() => {
@@ -261,20 +275,20 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
                       <Input
                         placeholder="Search product…"
                         value={productSearch}
-                        onChange={e => { setProductSearch(e.target.value); set('productId', '') }}
+                        onChange={e => { setProductSearch(e.target.value); set('productId', ''); setSelectedProduct(null) }} // ✅
                         className="pl-8 pr-3"
                       />
                       {loadingProducts && (
                         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
                       )}
                     </div>
-                    {products.length > 0 && (
+                    {!form.productId && products.length > 0 && (
                       <div className="border border-border rounded-md bg-background max-h-44 overflow-y-auto divide-y divide-border">
                         {products.map(p => (
                           <button
                             key={p.id}
                             type="button"
-                            onClick={() => { set('productId', p.id); setProductSearch(`${p.name} (${p.sku})`) }}
+                            onClick={() => { set('productId', p.id); setSelectedProduct(p); setProductSearch(`${p.name} (${p.sku})`) }} // ✅
                             className={cn(
                               'w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex items-center justify-between gap-2',
                               form.productId === p.id && 'bg-primary/5 text-primary font-medium'
@@ -289,7 +303,7 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
                         ))}
                       </div>
                     )}
-                    {productSearch && products.length === 0 && !loadingProducts && (
+                    {!form.productId && productSearch && products.length === 0 && !loadingProducts && (
                       <p className="text-xs text-muted-foreground px-1">No products found</p>
                     )}
                   </div>

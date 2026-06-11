@@ -77,7 +77,7 @@ export interface StockInRecord {
   date: string
   referenceNo?: string
   sourceNote?: string
-  product?: { id: string; name: string; sku: string; brand?: string }
+  product?: { id: string; name: string; sku: string; brand?: string; hasSerialNumbers: boolean }
   branch?: { id: string; name: string }
   dealer?: { id: string; name: string }
   serialNumbers?: SerialNumber[]

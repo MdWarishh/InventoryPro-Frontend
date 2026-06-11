@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { stockService } from '@/services/stock-transfer.service'
 import { productsService } from '@/services/products.service'
 import { branchesService } from '@/services/branches.service'
@@ -36,7 +36,6 @@ const INIT = {
   dealerId: '', sourceNote: '', referenceNo: '', date: '', brand: '',
 }
 
-// ISO date → YYYY-MM-DD for <input type="date">
 const toDateInput = (iso?: string) => {
   if (!iso) return ''
   return new Date(iso).toISOString().slice(0, 10)
@@ -49,11 +48,12 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
- const [products, setProducts] = useState<ProductOption[]>([])
-const [productSearch, setProductSearch] = useState('')
-const [loadingProducts, setLoadingProducts] = useState(false)
-const [loadingDropdowns, setLoadingDropdowns] = useState(false)
-const searchDebounceRef = useRef<NodeJS.Timeout>()
+  const [products, setProducts] = useState<ProductOption[]>([])
+  const [productSearch, setProductSearch] = useState('')
+  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [loadingDropdowns, setLoadingDropdowns] = useState(false)
+  const searchDebounceRef = useRef<NodeJS.Timeout>()
+
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [dealers, setDealers] = useState<DealerOption[]>([])
 
@@ -61,49 +61,60 @@ const searchDebounceRef = useRef<NodeJS.Timeout>()
   const [serialNumbers, setSerialNumbers] = useState<string[]>([])
   const serialInputRef = useRef<HTMLInputElement>(null)
 
-  const selectedProduct = products.find(p => p.id === form.productId)
+  // ✅ FIX: selectedProduct alag state mein — products array re-fetch se independent
+  const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null)
+
   const needsSerials = selectedProduct?.hasSerialNumbers ?? false
   const qty = Number(form.quantity) || 0
   const serialsComplete = !needsSerials || (qty > 0 && serialNumbers.length === qty)
   const remaining = qty - serialNumbers.length
 
-  // Load dropdowns on open
-useEffect(() => {
-  if (!open) return
-  setLoadingDropdowns(true)
-  Promise.all([
-    branchesService.getAll(),
-    dealersService.getAll({ limit: 200 }),
-  ])
-    .then(([b, d]) => {
-      setBranches((Array.isArray(b) ? b : []) as BranchOption[])
-      setDealers((d.data ?? []) as DealerOption[])
-    })
-    .catch(() => {})
-    .finally(() => setLoadingDropdowns(false))
-}, [open])
-
-useEffect(() => {
-  clearTimeout(searchDebounceRef.current)
-  if (!open) return
-  searchDebounceRef.current = setTimeout(async () => {
-    setLoadingProducts(true)
-    try {
-      const res = await productsService.getAll({ limit: 20, search: productSearch || undefined })
-      setProducts((res.products ?? []) as ProductOption[])
-    } catch {}
-    finally { setLoadingProducts(false) }
-  }, 300)
-  return () => clearTimeout(searchDebounceRef.current)
-}, [productSearch, open])
-
-  // Pre-fill form when editRecord changes or modal opens
+  // Load branches + dealers on open
   useEffect(() => {
-if (!open) {
-  setForm(INIT); setSerialNumbers([]); setSerialInput(''); setError('')
-  setProductSearch(''); setProducts([])
-  return
-}
+    if (!open) return
+    setLoadingDropdowns(true)
+    Promise.all([
+      branchesService.getAll(),
+      dealersService.getAll({ limit: 200 }),
+    ])
+      .then(([b, d]) => {
+        setBranches((Array.isArray(b) ? b : []) as BranchOption[])
+        setDealers((d.data ?? []) as DealerOption[])
+      })
+      .catch(() => {})
+      .finally(() => setLoadingDropdowns(false))
+  }, [open])
+
+  // ✅ FIX: Search sirf tab chale jab productId set NAHI hai (user type kar rha ho)
+  // Agar product already selected hai to re-fetch se products array replace nahi hogi
+  useEffect(() => {
+    clearTimeout(searchDebounceRef.current)
+    if (!open) return
+    if (form.productId) return // product selected hai, search mat karo
+
+    searchDebounceRef.current = setTimeout(async () => {
+      setLoadingProducts(true)
+      try {
+        const res = await productsService.getAll({ limit: 20, search: productSearch || undefined })
+        setProducts((res.products ?? []) as ProductOption[])
+      } catch {}
+      finally { setLoadingProducts(false) }
+    }, 300)
+    return () => clearTimeout(searchDebounceRef.current)
+  }, [productSearch, open, form.productId])
+
+  // Reset on close / pre-fill on edit
+  useEffect(() => {
+    if (!open) {
+      setForm(INIT)
+      setSerialNumbers([])
+      setSerialInput('')
+      setError('')
+      setProductSearch('')
+      setProducts([])
+      setSelectedProduct(null) // ✅ reset selected product
+      return
+    }
     if (editRecord) {
       setForm({
         productId:     editRecord.productId ?? '',
@@ -116,29 +127,57 @@ if (!open) {
         date:          toDateInput(editRecord.date),
         brand:         editRecord.product?.brand ?? '',
       })
-      // Pre-fill existing serial numbers (AVAILABLE only — SOLD ones can't be edited)
+      // ✅ Edit mode mein selectedProduct product info se set karo
+      if (editRecord.product) {
+        setSelectedProduct({
+          id:               editRecord.productId ?? '',
+          name:             editRecord.product.name ?? '',
+          sku:              editRecord.product.sku ?? '',
+          hasSerialNumbers: editRecord.product.hasSerialNumbers ?? false,
+          brand:            editRecord.product.brand ?? '',
+        })
+      }
       const existingSerials = (editRecord.serialNumbers ?? [])
         .filter(s => s.status === 'AVAILABLE')
         .map(s => s.serialNumber)
       setSerialNumbers(existingSerials)
     } else {
-      setForm(INIT); setSerialNumbers([]); setSerialInput(''); setError('')
+      setForm(INIT)
+      setSerialNumbers([])
+      setSerialInput('')
+      setError('')
+      setSelectedProduct(null) // ✅
     }
   }, [open, editRecord])
 
-  // Auto-fill brand from product dropdown (only in create mode)
+  // Auto-fill brand when selectedProduct changes (create mode only)
   useEffect(() => {
     if (isEdit) return
-    const p = products.find(x => x.id === form.productId)
-    set('brand', p?.brand || '')
-  }, [form.productId, products, isEdit])
+    set('brand', selectedProduct?.brand || '')
+  }, [selectedProduct, isEdit])
 
-  // Reset serials on product change (only in create mode)
+  // Reset serials on product change (create mode only)
   useEffect(() => {
     if (!isEdit) { setSerialNumbers([]); setSerialInput('') }
   }, [form.productId, isEdit])
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  // ✅ FIX: Product select handler — selectedProduct state set karo, search dobara trigger nahi hoga
+  const handleProductSelect = (product: ProductOption) => {
+    set('productId', product.id)
+    setSelectedProduct(product)
+    setProductSearch(`${product.name} (${product.sku})`)
+    // products list hide karne ke liye clear kar sakte hain (optional UX)
+    // setProducts([])
+  }
+
+  // ✅ FIX: Search input change — productId + selectedProduct dono clear
+  const handleSearchChange = (value: string) => {
+    setProductSearch(value)
+    set('productId', '')
+    setSelectedProduct(null) // serial section hide ho jaayega jab user dobara search kare
+  }
 
   const addSerial = () => {
     const val = serialInput.trim().toUpperCase()
@@ -220,49 +259,48 @@ if (!open) {
               <div className="col-span-2 space-y-1.5">
                 <Label>Product <span className="text-destructive">*</span></Label>
                 {isEdit ? (
-                  // In edit mode show product as read-only — can't change product of an existing record
                   <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-muted/50 text-sm text-foreground">
                     <span className="font-medium">{editRecord?.product?.name}</span>
                     <code className="text-xs text-muted-foreground">({editRecord?.product?.sku})</code>
                     <Badge variant="secondary" className="ml-auto text-[10px]">locked</Badge>
                   </div>
                 ) : (
-               <div className="space-y-1.5">
-  <div className="relative">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-    <Input
-      placeholder="Search product…"
-      value={productSearch}
-      onChange={e => { setProductSearch(e.target.value); set('productId', '') }}
-      className="pl-8 pr-3"
-    />
-    {loadingProducts && (
-      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
-    )}
-  </div>
-  {products.length > 0 && (
-    <div className="border border-border rounded-md bg-background max-h-44 overflow-y-auto divide-y divide-border">
-      {products.map(p => (
-        <button
-          key={p.id}
-          type="button"
-          onClick={() => { set('productId', p.id); setProductSearch(`${p.name} (${p.sku})`) }}
-          className={cn(
-            'w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex items-center justify-between gap-2',
-            form.productId === p.id && 'bg-primary/5 text-primary font-medium'
-          )}
-        >
-          <span>{p.name} <span className="text-muted-foreground font-mono text-xs">({p.sku})</span></span>
-          {p.hasSerialNumbers && <span className="text-xs">🔢</span>}
-        </button>
-      ))}
-    </div>
-  )}
-  {productSearch && products.length === 0 && !loadingProducts && (
-    <p className="text-xs text-muted-foreground px-1">No products found</p>
-  )}
-</div>
-
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search product…"
+                        value={productSearch}
+                        onChange={e => handleSearchChange(e.target.value)} // ✅ fixed handler
+                        className="pl-8 pr-3"
+                      />
+                      {loadingProducts && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {/* Dropdown — sirf tab dikhao jab product selected NAHI hai */}
+                    {!form.productId && products.length > 0 && (
+                      <div className="border border-border rounded-md bg-background max-h-44 overflow-y-auto divide-y divide-border">
+                        {products.map(p => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleProductSelect(p)} // ✅ fixed handler
+                            className={cn(
+                              'w-full text-left px-3 py-2 text-sm hover:bg-muted/60 transition-colors flex items-center justify-between gap-2',
+                              form.productId === p.id && 'bg-primary/5 text-primary font-medium'
+                            )}
+                          >
+                            <span>{p.name} <span className="text-muted-foreground font-mono text-xs">({p.sku})</span></span>
+                            {p.hasSerialNumbers && <span className="text-xs">🔢</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!form.productId && productSearch && products.length === 0 && !loadingProducts && (
+                      <p className="text-xs text-muted-foreground px-1">No products found</p>
+                    )}
+                  </div>
                 )}
               </div>
 

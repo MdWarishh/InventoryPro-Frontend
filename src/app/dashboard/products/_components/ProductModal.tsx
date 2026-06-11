@@ -49,7 +49,7 @@ const defaultForm: CreateProductPayload = {
   categoryId: '',
   minStockAlert: 10,
   unit: 'pcs',
-  hasSerialNumbers: false,
+  hasSerialNumbers: true,
   brand: '',
 }
 
@@ -327,7 +327,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           )}
 
           {/* Serial Numbers Toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
+          {/* <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
             <div>
               <p className="text-sm font-medium text-foreground">Track Serial Numbers</p>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -338,7 +338,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               checked={!!form.hasSerialNumbers}
               onCheckedChange={(v) => set('hasSerialNumbers', v)}
             />
-          </div>
+          </div> */}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
