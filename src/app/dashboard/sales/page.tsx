@@ -20,6 +20,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Treemap, Cell,
 } from 'recharts'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
 
 const LIMIT = 20
 
@@ -113,40 +114,57 @@ export default function SalesPage() {
   const [downloading, setDownloading] = useState(false)
   const [treemapView, setTreemapView] = useState<'products' | 'branches'>('products')
 
+  // ── Branch Filter ──────────────────────────────────────────────────────────
+  const { branchId, queryKey: branchQueryKey } = useBranchFilter()
+
   const isFiltered = !!(startDate || endDate)
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const { data: summaryData, isLoading: summaryLoading } = useQuery({
-    queryKey: ['sales-summary', startDate, endDate],
+    queryKey: ['sales-summary', ...branchQueryKey, startDate, endDate],
     queryFn: () => salesService.getSummary({
+      branchId: branchId ?? undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     }),
   })
 
   const { data: monthlyData, isLoading: monthlyLoading } = useQuery({
-    queryKey: ['sales-monthly'],
-    queryFn: () => salesService.getMonthlyRevenue({ months: 6 }),
+    queryKey: ['sales-monthly', ...branchQueryKey],
+    queryFn: () => salesService.getMonthlyRevenue({
+      months: 6,
+      branchId: branchId ?? undefined,
+    }),
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: yearlyData, isLoading: yearlyLoading } = useQuery({
-    queryKey: ['sales-yearly'],
-    queryFn: () => salesService.getYearlyRevenue({ years: 3 }),
+    queryKey: ['sales-yearly', ...branchQueryKey],
+    queryFn: () => salesService.getYearlyRevenue({
+      years: 3,
+      branchId: branchId ?? undefined,
+    }),
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: breakdownData, isLoading: breakdownLoading } = useQuery({
-    queryKey: ['sales-breakdown', startDate, endDate],
+    queryKey: ['sales-breakdown', ...branchQueryKey, startDate, endDate],
     queryFn: () => salesService.getBreakdown({
+      branchId: branchId ?? undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     }),
   })
 
   const { data: listData, isLoading: listLoading, isFetching: listFetching } = useQuery({
-    queryKey: ['sales-list', page, startDate, endDate],
-    queryFn: () => salesService.getAll({ page, limit: LIMIT, startDate: startDate || undefined, endDate: endDate || undefined }),
+    queryKey: ['sales-list', ...branchQueryKey, page, startDate, endDate],
+    queryFn: () => salesService.getAll({
+      page,
+      limit: LIMIT,
+      branchId: branchId ?? undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    }),
     placeholderData: (prev) => prev,
   })
 
@@ -170,7 +188,11 @@ export default function SalesPage() {
   const handleDownload = async () => {
     setDownloading(true)
     try {
-      await salesService.downloadExcel({ startDate: startDate || undefined, endDate: endDate || undefined })
+      await salesService.downloadExcel({
+        branchId: branchId ?? undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      })
     } catch (e) { console.error(e) }
     finally { setDownloading(false) }
   }

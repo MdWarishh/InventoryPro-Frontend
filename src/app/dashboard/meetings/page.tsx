@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { meetingsService } from '@/services/meetings.service'
 import type { Meeting, CreateMeetingPayload, UpdateMeetingPayload } from '@/types/meetings.types'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
 
 import { meetingsStyles } from './_components/meetings.styles'
 import { MeetingFilters } from './_components/MeetingFilters'
@@ -71,6 +72,9 @@ export default function MeetingsPage() {
     setTimeout(() => setToast(null), 3000)
   }
 
+  // ── Branch Filter ────────────────────────────────────────────────────────────
+  const { branchId } = useBranchFilter()
+
   const load = useCallback(async () => {
     setFetching(true)
     try {
@@ -78,6 +82,7 @@ export default function MeetingsPage() {
         status: statusFilter as any || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        branchId: branchId ?? undefined,   // ← branch filter
       })
       setMeetings(data)
     } catch {
@@ -85,7 +90,7 @@ export default function MeetingsPage() {
     } finally {
       setFetching(false)
     }
-  }, [statusFilter, startDate, endDate])
+  }, [statusFilter, startDate, endDate, branchId])  // ← branchId dependency
 
   useEffect(() => { load() }, [load])
 

@@ -55,6 +55,7 @@ export interface ExpenseFilters {
   paymentMethod?: PaymentMethod
   page?: number
   limit?: number
+  branchId?: string   // ← ADD: branch filter for SUPER_ADMIN
 }
 
 export interface StatsFilters {
@@ -62,4 +63,5 @@ export interface StatsFilters {
   year?: number
   startDate?: string
   endDate?: string
+  branchId?: string   // ← ADD: branch filter for SUPER_ADMIN
 }

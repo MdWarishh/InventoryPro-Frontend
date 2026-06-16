@@ -202,6 +202,7 @@ export interface CreateDealerPayload {
   bankName?: string
   ifscCode?: string
   notes?: string
+  branchId?: string
 }
 
 export type UpdateDealerPayload = Partial<CreateDealerPayload>
@@ -237,6 +238,7 @@ export interface DealerFilters {
   page?: number
   limit?: number
   search?: string
+  branchId?: string
 }
 
 export interface HistoryFilters {

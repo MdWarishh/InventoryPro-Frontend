@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
+import { useBranchStore } from '@/store/branch.store'
 
 export default function DealersPage() {
   const [dealers, setDealers] = useState<Dealer[]>([])
@@ -29,6 +31,9 @@ export default function DealersPage() {
   const [deleteDealer, setDeleteDealer] = useState<Dealer | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  const { branchId: globalBranchId } = useBranchFilter()
+  const branches = useBranchStore((s) => s.branches)
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350)
     return () => clearTimeout(t)
@@ -37,7 +42,10 @@ export default function DealersPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await dealersService.getAll({ search: debouncedSearch || undefined })
+      const res = await dealersService.getAll({
+        search: debouncedSearch || undefined,
+        branchId: globalBranchId || undefined,  
+      })
       setDealers(res.data ?? [])
       setTotal(res.pagination.total)
     } catch (e) {
@@ -45,9 +53,14 @@ export default function DealersPage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch])
+  }, [debouncedSearch, globalBranchId])  // ← add globalBranchId
 
   useEffect(() => { load() }, [load])
+
+  // Branch change pe search reset
+  useEffect(() => {
+    setSearch('')
+  }, [globalBranchId])
 
   const handleCreate = async (data: CreateDealerPayload) => {
     setFormLoading(true)
@@ -77,7 +90,7 @@ export default function DealersPage() {
     <>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-7 space-y-6">
 
-        {/* ── Page Header ── */}
+        {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
@@ -85,7 +98,12 @@ export default function DealersPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-foreground">Dealers</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Manage your wholesale dealer network</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {globalBranchId
+                  ? `Branch: ${branches.find(b => b.id === globalBranchId)?.name ?? '...'}`
+                  : 'Manage your wholesale dealer network'
+                }
+              </p>
             </div>
           </div>
           <Button size="sm" className="gap-2" onClick={() => setFormOpen(true)}>
@@ -94,15 +112,27 @@ export default function DealersPage() {
           </Button>
         </div>
 
-        {/* ── Stats Bar ── */}
+        {/* Active branch indicator */}
+        {globalBranchId && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
+            Showing dealers for:{' '}
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              {branches.find((b) => b.id === globalBranchId)?.name ?? 'Selected Branch'}
+            </span>
+            <span className="text-[10px]">(change from sidebar)</span>
+          </div>
+        )}
+
+        {/* Stats Bar */}
         <Card>
           <CardContent className="p-0">
             <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-border">
               {[
-                { icon: Users,     label: 'Active Dealers', value: total,         color: 'text-primary' },
-                { icon: Package,   label: 'Total Stock In', value: totalStockIn,  color: 'text-blue-600 dark:text-blue-400' },
-                { icon: TrendingUp,label: 'Total Sales',    value: totalStockOut, color: 'text-emerald-600 dark:text-emerald-400' },
-                { icon: FileText,  label: 'Invoices',       value: totalInvoices, color: 'text-violet-600 dark:text-violet-400' },
+                { icon: Users,      label: 'Active Dealers', value: total,         color: 'text-primary' },
+                { icon: Package,    label: 'Total Stock In', value: totalStockIn,  color: 'text-blue-600 dark:text-blue-400' },
+                { icon: TrendingUp, label: 'Total Sales',    value: totalStockOut, color: 'text-emerald-600 dark:text-emerald-400' },
+                { icon: FileText,   label: 'Invoices',       value: totalInvoices, color: 'text-violet-600 dark:text-violet-400' },
               ].map(({ icon: Icon, label, value, color }) => (
                 <div key={label} className="flex items-center gap-3 px-5 py-4">
                   <Icon className={`w-4 h-4 shrink-0 ${color}`} />
@@ -116,7 +146,7 @@ export default function DealersPage() {
           </CardContent>
         </Card>
 
-        {/* ── Search + Refresh ── */}
+        {/* Search + Refresh */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -138,7 +168,7 @@ export default function DealersPage() {
           </Button>
         </div>
 
-        {/* ── Grid ── */}
+        {/* Grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -196,7 +226,7 @@ export default function DealersPage() {
         )}
       </div>
 
-      {/* ── Modals ── */}
+      {/* Modals */}
       <DealerFormModal
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditDealer(null) }}

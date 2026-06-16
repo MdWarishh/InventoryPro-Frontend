@@ -23,6 +23,8 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Search, AlertTriangle } from 'lucide-react'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
+import { useBranchStore } from '@/store/branch.store'
 
 type Tab = 'current' | 'in' | 'out'
 
@@ -37,42 +39,58 @@ export default function StockPage() {
   const [lowStock, setLowStock] = useState(false)
   const [histPage, setHistPage] = useState(1)
 
-  // ── Stock In modal state ──────────────────────────────────────────────────
   const [inModal, setInModal] = useState(false)
   const [editStockIn, setEditStockIn] = useState<StockInRecord | null>(null)
-
-  // ── Stock Out modal state ─────────────────────────────────────────────────
   const [outModal, setOutModal] = useState(false)
   const [editStockOut, setEditStockOut] = useState<StockOutRecord | null>(null)
 
-  // ── Data fetchers ─────────────────────────────────────────────────────────
+  // Global branch filter from sidebar
+  const { branchId: globalBranchId } = useBranchFilter()
+  const branches = useBranchStore((s) => s.branches)
+
   const loadCurrent = useCallback(async () => {
     setFetching(true)
     try {
-      const data = await stockService.getCurrentStock({ lowStock: lowStock ? 'true' : undefined })
+      const data = await stockService.getCurrentStock({
+        lowStock: lowStock ? 'true' : undefined,
+        branchId: globalBranchId || undefined,   // ← branch filter
+      })
       setCurrentStock(data)
+    } catch {
+      toast.error('Failed to load stock data.')
     } finally {
       setFetching(false)
     }
-  }, [lowStock])
+  }, [lowStock, globalBranchId])
 
   const loadHistory = useCallback(async (type: StockHistoryType, page: number) => {
     setFetching(true)
     try {
-      const res = await stockService.getHistory(type, { page, limit: 20 })
+      const res = await stockService.getHistory(type, {
+        page,
+        limit: 20,
+        branchId: globalBranchId || undefined,   // ← branch filter
+      })
       setHistoryItems(res.items as any)
       setPagination(res.pagination)
+    } catch {
+      toast.error('Failed to load history.')
     } finally {
       setFetching(false)
     }
-  }, [])
+  }, [globalBranchId])
 
+  // Tab/filter/branch change pe data reload
   useEffect(() => {
     if (tab === 'current') loadCurrent()
     else loadHistory(tab as StockHistoryType, histPage)
-  }, [tab, lowStock, histPage])
+  }, [tab, lowStock, histPage, globalBranchId])
 
-  // Refresh both current + active history tab after any mutation
+  // Branch change pe page reset
+  useEffect(() => {
+    setHistPage(1)
+  }, [globalBranchId])
+
   const refreshAll = useCallback(() => {
     loadCurrent()
     if (tab === 'in') loadHistory('in', histPage)
@@ -93,7 +111,7 @@ export default function StockPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-screen-xl mx-auto px-6 py-8 space-y-6">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Stock Management</h1>
@@ -102,7 +120,7 @@ export default function StockPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-400 hover:text-emerald-900 dark:border-emerald-800 dark:text-emerald-10 dark:hover:bg-emerald-950"
+              className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-400 hover:text-emerald-900 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950"
               onClick={() => { setEditStockIn(null); setInModal(true) }}
             >
               <Plus className="w-4 h-4" />
@@ -119,12 +137,24 @@ export default function StockPage() {
           </div>
         </div>
 
-        {/* ── Stats ── */}
+        {/* Active branch indicator */}
+        {globalBranchId && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
+            Showing stock for:{' '}
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              {branches.find((b) => b.id === globalBranchId)?.name ?? 'Selected Branch'}
+            </span>
+            <span className="text-[10px]">(change from sidebar)</span>
+          </div>
+        )}
+
+        {/* Stats */}
         {tab === 'current' && !fetching && (
           <StatsRow currentStock={currentStock} />
         )}
 
-        {/* ── Tabs + Toolbar ── */}
+        {/* Tabs + Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs value={tab} onValueChange={(v) => { setTab(v as Tab); setHistPage(1) }}>
             <TabsList>
@@ -146,15 +176,15 @@ export default function StockPage() {
                 />
               </div>
               <Button
-              variant="outline"
+                variant="outline"
                 size="sm"
                 onClick={() => setLowStock(l => !l)}
-                  className={cn(
-    'gap-2 transition-all',
-    lowStock
-      ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-400 hover:text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/30 dark:hover:text-amber-400'
-      : 'hover:bg-red-500 hover:text-white'
-  )}
+                className={cn(
+                  'gap-2 transition-all',
+                  lowStock
+                    ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-400 hover:text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                    : 'hover:bg-red-500 hover:text-white'
+                )}
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
                 Low Stock
@@ -164,7 +194,7 @@ export default function StockPage() {
           )}
         </div>
 
-        {/* ── Table ── */}
+        {/* Table */}
         <div className={cn(
           'rounded-xl border border-border bg-card overflow-hidden transition-opacity duration-200',
           fetching && 'opacity-50 pointer-events-none'
@@ -176,10 +206,7 @@ export default function StockPage() {
             <StockInHistoryTable
               items={historyItems as StockInRecord[]}
               fetching={fetching}
-              onEdit={(record) => {
-                setEditStockIn(record)
-                setInModal(true)
-              }}
+              onEdit={(record) => { setEditStockIn(record); setInModal(true) }}
               onDeleteSuccess={refreshAll}
             />
           )}
@@ -187,10 +214,7 @@ export default function StockPage() {
             <StockOutHistoryTable
               items={historyItems as StockOutRecord[]}
               fetching={fetching}
-              onEdit={(record) => {
-                setEditStockOut(record)
-                setOutModal(true)
-              }}
+              onEdit={(record) => { setEditStockOut(record); setOutModal(true) }}
               onDeleteSuccess={refreshAll}
             />
           )}
@@ -199,10 +223,9 @@ export default function StockPage() {
             <TablePagination pagination={pagination} page={histPage} onPageChange={setHistPage} />
           )}
         </div>
-
       </div>
 
-      {/* ── Modals ── */}
+      {/* Modals */}
       <StockInModal
         open={inModal}
         editRecord={editStockIn}

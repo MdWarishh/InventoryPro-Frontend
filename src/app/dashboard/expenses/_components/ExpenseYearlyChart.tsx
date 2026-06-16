@@ -16,29 +16,21 @@ interface MonthData {
 
 // ─── Hook: fetch all 12 months ────────────────────────────────────────────────
 
-function useYearlyExpenseStats(year: number) {
-  const months = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => ({
-        month: i + 1,
-        year,
-      })),
-    [year]
-  )
+function useYearlyExpenseStats(year: number, branchId?: string) {
+  const b = branchId ? { branchId } : {}
 
-  // Fetch each month independently
-  const jan  = useExpenseStats({ month: 1,  year })
-  const feb  = useExpenseStats({ month: 2,  year })
-  const mar  = useExpenseStats({ month: 3,  year })
-  const apr  = useExpenseStats({ month: 4,  year })
-  const may  = useExpenseStats({ month: 5,  year })
-  const jun  = useExpenseStats({ month: 6,  year })
-  const jul  = useExpenseStats({ month: 7,  year })
-  const aug  = useExpenseStats({ month: 8,  year })
-  const sep  = useExpenseStats({ month: 9,  year })
-  const oct  = useExpenseStats({ month: 10, year })
-  const nov  = useExpenseStats({ month: 11, year })
-  const dec  = useExpenseStats({ month: 12, year })
+  const jan  = useExpenseStats({ month: 1,  year, ...b })
+  const feb  = useExpenseStats({ month: 2,  year, ...b })
+  const mar  = useExpenseStats({ month: 3,  year, ...b })
+  const apr  = useExpenseStats({ month: 4,  year, ...b })
+  const may  = useExpenseStats({ month: 5,  year, ...b })
+  const jun  = useExpenseStats({ month: 6,  year, ...b })
+  const jul  = useExpenseStats({ month: 7,  year, ...b })
+  const aug  = useExpenseStats({ month: 8,  year, ...b })
+  const sep  = useExpenseStats({ month: 9,  year, ...b })
+  const oct  = useExpenseStats({ month: 10, year, ...b })
+  const nov  = useExpenseStats({ month: 11, year, ...b })
+  const dec  = useExpenseStats({ month: 12, year, ...b })
 
   const allStats = [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]
 
@@ -83,7 +75,7 @@ interface BarProps {
 
 function Bar({ d, maxVal, isCurrentMonth, isSelected, onClick, skeletonMode }: BarProps) {
   const pct = maxVal > 0 ? (d.total / maxVal) * 100 : 0
-  const heightPct = Math.max(pct, d.total > 0 ? 4 : 0) // min visible height
+  const heightPct = Math.max(pct, d.total > 0 ? 4 : 0)
 
   return (
     <button
@@ -124,7 +116,6 @@ function Bar({ d, maxVal, isCurrentMonth, isSelected, onClick, skeletonMode }: B
               }`}
             style={{ height: `${heightPct}%`, minHeight: d.total > 0 ? '6px' : '0px' }}
           >
-            {/* Shimmer on selected */}
             {isSelected && (
               <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-white/20" />
             )}
@@ -157,14 +148,19 @@ function Bar({ d, maxVal, isCurrentMonth, isSelected, onClick, skeletonMode }: B
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ExpenseYearlyChart() {
+interface ExpenseYearlyChartProps {
+  branchId?: string   // ← NEW: optional, SUPER_ADMIN ke liye
+}
+
+export function ExpenseYearlyChart({ branchId }: ExpenseYearlyChartProps) {
   const currentYear  = new Date().getFullYear()
-  const currentMonth = new Date().getMonth() // 0-indexed
+  const currentMonth = new Date().getMonth()
 
   const [selectedYear, setSelectedYear]   = useState(currentYear)
   const [selectedMonth, setSelectedMonth] = useState<number | null>(currentMonth)
 
-  const { data, isLoading } = useYearlyExpenseStats(selectedYear)
+  // branchId pass karo hook mein
+  const { data, isLoading } = useYearlyExpenseStats(selectedYear, branchId)
 
   const maxVal     = useMemo(() => Math.max(...data.map((d) => d.total), 1), [data])
   const yearTotal  = useMemo(() => data.reduce((s, d) => s + d.total, 0), [data])

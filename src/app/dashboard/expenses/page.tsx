@@ -14,6 +14,7 @@ import {
   getCurrentMonthRange,
 } from '@/hooks/useExpenses'
 import { useAuth } from '@/hooks/useAuth'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
 import type { ExpenseFilters, StatsFilters } from '@/types/expenses.types'
 
 // ─── No Access State ──────────────────────────────────────────────────────────
@@ -37,15 +38,25 @@ function NoAccess() {
 interface TabProps {
   canCreate: boolean
   canDelete: boolean
+  branchId: string | null
 }
 
-function CurrentMonthTab({ canCreate, canDelete }: TabProps) {
+function CurrentMonthTab({ canCreate, canDelete, branchId }: TabProps) {
   const { startDate, endDate, month, year } = getCurrentMonthRange()
   const [key, setKey] = useState(0)
   const refresh = useCallback(() => setKey((k) => k + 1), [])
 
-  const { expenses, isLoading: listLoading, refetch: refetchList } = useExpenses({ startDate, endDate })
-  const { stats, isLoading: statsLoading, refetch: refetchStats } = useExpenseStats({ month, year })
+  const { expenses, isLoading: listLoading, refetch: refetchList } = useExpenses({
+    startDate,
+    endDate,
+    ...(branchId ? { branchId } : {}),
+  })
+
+  const { stats, isLoading: statsLoading, refetch: refetchStats } = useExpenseStats({
+    month,
+    year,
+    ...(branchId ? { branchId } : {}),
+  })
 
   const handleSuccess = () => {
     refetchList()
@@ -75,13 +86,23 @@ function CurrentMonthTab({ canCreate, canDelete }: TabProps) {
 
 // ─── History Tab ──────────────────────────────────────────────────────────────
 
-function HistoryTab({ canDelete }: { canDelete: boolean }) {
+function HistoryTab({ canDelete, branchId }: { canDelete: boolean; branchId: string | null }) {
   const [listFilters, setListFilters] = useState<ExpenseFilters>({})
   const [statsFilters, setStatsFilters] = useState<StatsFilters>({})
   const [key, setKey] = useState(0)
 
-  const { expenses, isLoading: listLoading, refetch: refetchList } = useExpenses(listFilters)
-  const { stats, isLoading: statsLoading, refetch: refetchStats } = useExpenseStats(statsFilters)
+  const mergedListFilters: ExpenseFilters = {
+    ...listFilters,
+    ...(branchId ? { branchId } : {}),
+  }
+
+  const mergedStatsFilters: StatsFilters = {
+    ...statsFilters,
+    ...(branchId ? { branchId } : {}),
+  }
+
+  const { expenses, isLoading: listLoading, refetch: refetchList } = useExpenses(mergedListFilters)
+  const { stats, isLoading: statsLoading, refetch: refetchStats } = useExpenseStats(mergedStatsFilters)
 
   const handleFilter = (f: Partial<ExpenseFilters>) => {
     setListFilters(f)
@@ -108,10 +129,10 @@ function HistoryTab({ canDelete }: { canDelete: boolean }) {
 
 // ─── Yearly Tab ───────────────────────────────────────────────────────────────
 
-function YearlyTab() {
+function YearlyTab({ branchId }: { branchId: string | null }) {
   return (
     <div className="space-y-4">
-      <ExpenseYearlyChart />
+      <ExpenseYearlyChart branchId={branchId ?? undefined} />
     </div>
   )
 }
@@ -120,6 +141,7 @@ function YearlyTab() {
 
 export default function ExpensesPage() {
   const { hasPermission } = useAuth()
+  const { branchId } = useBranchFilter()
 
   const canView   = hasPermission('EXPENSES', 'canView')
   const canCreate = hasPermission('EXPENSES', 'canCreate')
@@ -167,15 +189,22 @@ export default function ExpensesPage() {
           </TabsList>
 
           <TabsContent value="current" className="mt-4">
-            <CurrentMonthTab canCreate={canCreate} canDelete={canDelete} />
+            <CurrentMonthTab
+              canCreate={canCreate}
+              canDelete={canDelete}
+              branchId={branchId}
+            />
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">
-            <HistoryTab canDelete={canDelete} />
+            <HistoryTab
+              canDelete={canDelete}
+              branchId={branchId}
+            />
           </TabsContent>
 
           <TabsContent value="yearly" className="mt-4">
-            <YearlyTab />
+            <YearlyTab branchId={branchId} />
           </TabsContent>
         </Tabs>
       </div>
