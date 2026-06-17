@@ -7,22 +7,30 @@ import FilterBar from './FilterBar'
 interface Props {
   isSuperAdmin?: boolean
   branches?: { id: string; name: string }[]
+  globalBranchId?: string  // ← add
 }
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n)
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN')
 
-export default function GSTReport({ isSuperAdmin, branches }: Props) {
+export default function GSTReport({ isSuperAdmin, branches, globalBranchId }: Props) {
   const [data, setData] = useState<GSTSummary | GSTR1Item[] | GSTR2Item[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState<GSTFilter>({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     type: 'summary',
+    branchId: globalBranchId || undefined,  // ← initial set
   })
   const [page, setPage] = useState(1)
   const PER_PAGE = 20
+
+  // Global branch change pe filter sync
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, branchId: globalBranchId || undefined }))
+    setPage(1)
+  }, [globalBranchId])
 
   useEffect(() => {
     if (!filters.month || !filters.year) return
@@ -46,6 +54,15 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
         onFilterChange={f => { setFilters(f as GSTFilter); setPage(1) }}
       />
 
+      {/* Global branch indicator */}
+      {globalBranchId && (
+        <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400">
+          <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
+          Showing GST for: <span className="font-semibold">{branches?.find(b => b.id === globalBranchId)?.name ?? 'Selected Branch'}</span>
+        </div>
+      )}
+
+      {/* Baaki JSX same — loading, summary, tables sab same */}
       {loading ? (
         <div className="flex items-center justify-center py-16 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
           <div className="text-center">
@@ -66,7 +83,6 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
         </div>
       ) : (
         <>
-          {/* ── Summary View ── */}
           {isSummary && summary && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -131,7 +147,6 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
             </>
           )}
 
-          {/* ── GSTR-1 / GSTR-2 Table ── */}
           {!isSummary && (
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -142,16 +157,13 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
                   {tableItems.length} records
                 </span>
               </div>
-
               <div className="overflow-x-auto">
                 {isGSTR1 ? (
                   <table className="w-full min-w-[1000px]">
                     <thead>
                       <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                         {['Invoice No', 'Date', 'Customer', 'GSTIN', 'HSN', 'Product', 'Qty', 'Taxable', 'Rate', 'CGST', 'SGST', 'Total Tax', 'Invoice Value'].map((h, i) => (
-                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i >= 6 ? 'text-right' : 'text-left'}`}>
-                            {h}
-                          </th>
+                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i >= 6 ? 'text-right' : 'text-left'}`}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -167,9 +179,7 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 text-right">{item.quantity}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.taxableValue)}</td>
                           <td className="px-4 py-3 text-right">
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full">
-                              {item.gstRate}%
-                            </span>
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full">{item.gstRate}%</span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.cgst)}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.sgst)}</td>
@@ -178,11 +188,7 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
                         </tr>
                       ))}
                       {paginated.length === 0 && (
-                        <tr>
-                          <td colSpan={13} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
-                            No records found
-                          </td>
-                        </tr>
+                        <tr><td colSpan={13} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">No records found</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -191,9 +197,7 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
                     <thead>
                       <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                         {['Date', 'Dealer', 'GSTIN', 'HSN', 'Product', 'Qty', 'Taxable', 'Rate', 'CGST', 'SGST', 'Total Tax'].map((h, i) => (
-                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i >= 5 ? 'text-right' : 'text-left'}`}>
-                            {h}
-                          </th>
+                          <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide ${i >= 5 ? 'text-right' : 'text-left'}`}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -208,9 +212,7 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 text-right">{item.quantity}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.taxableValue)}</td>
                           <td className="px-4 py-3 text-right">
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full">
-                              {item.gstRate}%
-                            </span>
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full">{item.gstRate}%</span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.cgst)}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.sgst)}</td>
@@ -218,34 +220,23 @@ export default function GSTReport({ isSuperAdmin, branches }: Props) {
                         </tr>
                       ))}
                       {paginated.length === 0 && (
-                        <tr>
-                          <td colSpan={11} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
-                            No records found
-                          </td>
-                        </tr>
+                        <tr><td colSpan={11} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">No records found</td></tr>
                       )}
                     </tbody>
                   </table>
                 )}
               </div>
-
               {totalPages > 1 && (
                 <div className="px-5 py-3.5 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, tableItems.length)} of {tableItems.length}
                   </p>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    >‹</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-all">‹</button>
                     <span className="text-sm text-gray-600 dark:text-gray-400">{page} / {totalPages}</span>
-                    <button
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    >›</button>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-all">›</button>
                   </div>
                 </div>
               )}

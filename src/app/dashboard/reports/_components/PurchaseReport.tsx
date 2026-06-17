@@ -7,20 +7,28 @@ import FilterBar from './FilterBar'
 interface Props {
   isSuperAdmin?: boolean
   branches?: { id: string; name: string }[]
+  globalBranchId?: string 
 }
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
-export default function PurchaseReportView({ isSuperAdmin, branches }: Props) {
+export default function PurchaseReportView({ isSuperAdmin, branches, globalBranchId }: Props) {
   const [data, setData] = useState<PurchaseReport | null>(null)
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState<ReportsFilter>({})
+  const [filters, setFilters] = useState<ReportsFilter>({ branchId: globalBranchId || undefined})
   const [downloading, setDownloading] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const PER_PAGE = 15
 
+
+    useEffect(() => {
+    setFilters(prev => ({ ...prev, branchId: globalBranchId || undefined }))
+    setPage(1)
+  }, [globalBranchId])
+
+  
   useEffect(() => {
     setLoading(true)
     reportsService.getPurchase(filters).then(setData).finally(() => setLoading(false))

@@ -27,10 +27,10 @@ function buildQuery(params: Record<string, any>) {
 }
 
 export const reportsService = {
-  getDashboard: async (branchId?: string): Promise<DashboardStats> => {
+  getDashboard: async (filters?: { branchId?: string }): Promise<DashboardStats> => {
     const { data } = await apiClient.get<ApiSuccess<DashboardStats>>(
       `${BASE_URL}/dashboard`,
-      { params: buildQuery({ branchId }) }
+      { params: buildQuery({ branchId: filters?.branchId }) }
     )
     return data.data
   },
@@ -51,10 +51,10 @@ export const reportsService = {
     return data.data
   },
 
-  getStockValuation: async (branchId?: string): Promise<StockValuationReport> => {
+  getStockValuation: async (filters?: { branchId?: string }): Promise<StockValuationReport> => {
     const { data } = await apiClient.get<ApiSuccess<StockValuationReport>>(
       `${BASE_URL}/stock-valuation`,
-      { params: buildQuery({ branchId }) }
+      { params: buildQuery({ branchId: filters?.branchId }) }
     )
     return data.data
   },
@@ -78,10 +78,10 @@ export const reportsService = {
     return data.data
   },
 
-  getLowStock: async (branchId?: string): Promise<LowStockItem[]> => {
+  getLowStock: async (filters?: { branchId?: string }): Promise<LowStockItem[]> => {
     const { data } = await apiClient.get<ApiSuccess<LowStockItem[]>>(
       `${BASE_URL}/low-stock`,
-      { params: buildQuery({ branchId }) }
+      { params: buildQuery({ branchId: filters?.branchId }) }
     )
     return data.data
   },

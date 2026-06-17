@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Users } from 'lucide-react'
 import { usersService } from '@/services/users.service'
 import { branchesService } from '@/services/branches.service'
 import { useAuth } from '@/hooks/useAuth'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
 import type { User } from '@/types/users.types'
 import type { Branch } from '@/types/products.types'
 
@@ -27,15 +28,24 @@ export default function UsersPage() {
   const canAdmin = isBranchAdmin || isSuperAdmin
   const qc = useQueryClient()
 
+  // ── Global branch filter (sidebar se) ────────────────────────────────────
+  const { branchId: globalBranchId } = useBranchFilter()
+
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [role, setRole] = useState('')
-  const [branchId, setBranchId] = useState('')
+  const [branchId, setBranchId] = useState(globalBranchId ?? '')
   const [page, setPage] = useState(1)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
 
   const [modal, setModal] = useState<ModalState>(null)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+
+  // Global branch change hone pe local branchId sync karo + page reset
+  useEffect(() => {
+    setBranchId(globalBranchId ?? '')
+    setPage(1)
+  }, [globalBranchId])
 
   const handleSearch = useCallback((val: string) => {
     setSearch(val)
@@ -44,7 +54,7 @@ export default function UsersPage() {
   }, [])
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['users', page, debouncedSearch, role, branchId],
+    queryKey: ['users', page, debouncedSearch, role, branchId, globalBranchId],
     queryFn: () => usersService.getAll({
       page, limit: LIMIT,
       search: debouncedSearch || undefined,

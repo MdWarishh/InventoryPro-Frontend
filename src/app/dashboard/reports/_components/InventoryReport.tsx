@@ -6,6 +6,7 @@ import { reportsService } from '@/services/reports.service'
 interface Props {
   isSuperAdmin?: boolean
   branches?: { id: string; name: string }[]
+  globalBranchId?: string  // ← add
 }
 
 const fmt = (n: number) =>
@@ -13,9 +14,9 @@ const fmt = (n: number) =>
 
 type InvTab = 'valuation' | 'lowstock'
 
-export default function InventoryReport({ isSuperAdmin, branches }: Props) {
+export default function InventoryReport({ isSuperAdmin, branches, globalBranchId }: Props) {
   const [tab, setTab] = useState<InvTab>('valuation')
-  const [branchId, setBranchId] = useState('')
+  const [branchId, setBranchId] = useState(globalBranchId || '')  // ← global se initialize
   const [valuation, setValuation] = useState<StockValuationReport | null>(null)
   const [lowStock, setLowStock] = useState<LowStockItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,13 +25,19 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
   const [page, setPage] = useState(1)
   const PER_PAGE = 15
 
+  // Global branch change pe local branchId sync karo
+  useEffect(() => {
+    setBranchId(globalBranchId || '')
+    setPage(1)
+  }, [globalBranchId])
+
   useEffect(() => {
     setLoading(true)
     const bid = branchId || undefined
     if (tab === 'valuation') {
-      reportsService.getStockValuation(bid).then(setValuation).finally(() => setLoading(false))
+      reportsService.getStockValuation({ branchId: bid }).then(setValuation).finally(() => setLoading(false))
     } else {
-      reportsService.getLowStock(bid).then(setLowStock).finally(() => setLoading(false))
+      reportsService.getLowStock({ branchId: bid }).then(setLowStock).finally(() => setLoading(false))
     }
   }, [tab, branchId])
 
@@ -58,9 +65,9 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
   const items = tab === 'valuation' ? valFiltered : lowFiltered
   const totalPages = Math.ceil(items.length / PER_PAGE)
   const paginated = items.slice((page - 1) * PER_PAGE, page * PER_PAGE)
-
   const outOfStock = lowStock.filter(i => i.currentStock === 0).length
 
+  // Baaki JSX SAME — sirf select onChange mein globalBranchId check add karo
   return (
     <div className="space-y-5">
       {/* Toolbar */}
@@ -104,7 +111,8 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {isSuperAdmin && branches && branches.length > 0 && (
+            {/* Branch select — sirf tab show karo jab global branch select nahi hai */}
+            {isSuperAdmin && branches && branches.length > 0 && !globalBranchId && (
               <select
                 value={branchId}
                 onChange={e => { setBranchId(e.target.value); setPage(1) }}
@@ -113,6 +121,12 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
                 <option value="">All Branches</option>
                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
+            )}
+            {/* Global branch selected indicator */}
+            {globalBranchId && (
+              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                {branches?.find(b => b.id === globalBranchId)?.name ?? 'Selected Branch'}
+              </span>
             )}
             <button
               onClick={handleDownload}
@@ -148,52 +162,38 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
         </div>
       ) : (
         <>
-          {/* Valuation Summary */}
+          {/* Summary cards — valuation tab */}
           {tab === 'valuation' && valuation && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Purchase Value</p>
-                <p className="text-2xl font-semibold text-blue-700 dark:text-blue-400 mt-1">{fmt(valuation.summary.totalPurchaseValue)}</p>
+                <p className="text-2xl font-semibold text-orange-600 dark:text-orange-400 mt-1">{fmt(valuation.summary.totalPurchaseValue)}</p>
               </div>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Selling Value</p>
-                <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400 mt-1">{fmt(valuation.summary.totalSellingValue)}</p>
+                <p className="text-2xl font-semibold text-blue-700 dark:text-blue-400 mt-1">{fmt(valuation.summary.totalSellingValue)}</p>
               </div>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Products</p>
-                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-50 mt-1">{valuation.items.length}</p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Potential Profit</p>
+                <p className={`text-2xl font-semibold mt-1 ${valuation.summary.potentialProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {fmt(valuation.summary.potentialProfit)}
+                </p>
               </div>
             </div>
           )}
 
-          {/* Low Stock Summary */}
+          {/* Summary cards — lowstock tab */}
           {tab === 'lowstock' && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Low Stock Items</p>
-                  <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400 mt-1">{lowStock.length}</p>
-                </div>
-                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Out of Stock</p>
-                  <p className={`text-2xl font-semibold mt-1 ${outOfStock > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-50'}`}>
-                    {outOfStock}
-                  </p>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Low Stock Items</p>
+                <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400 mt-1">{lowStock.length}</p>
               </div>
-
-              {lowFiltered.length > 0 && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl">
-                  <svg width="16" height="16" fill="none" stroke="#d97706" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
-                  <span className="text-sm text-amber-800 dark:text-amber-300">
-                    <strong>{lowFiltered.length} products</strong> are at or below minimum stock threshold
-                  </span>
-                </div>
-              )}
-            </>
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Out of Stock</p>
+                <p className="text-2xl font-semibold text-red-600 dark:text-red-400 mt-1">{outOfStock}</p>
+              </div>
+            </div>
           )}
 
           {/* Table */}
@@ -235,26 +235,15 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
                           </td>
                           <td className="px-5 py-3.5 text-sm text-gray-500 dark:text-gray-400">{item.category}</td>
                           <td className="px-5 py-3.5 text-sm text-gray-900 dark:text-gray-100 text-right font-medium">{item.currentStock.toLocaleString('en-IN')}</td>
-                            {/* ✅ NEW — Purchase Price */}
-  <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">
-    {fmt(item.purchasePrice)}
-  </td>
-
-  {/* ✅ NEW — Purchase Value */}
-  <td className="px-5 py-3.5 text-sm font-semibold text-orange-600 dark:text-orange-400 text-right">
-    {fmt(item.purchaseValue)}
-  </td>
-  
+                          <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.purchasePrice)}</td>
+                          <td className="px-5 py-3.5 text-sm font-semibold text-orange-600 dark:text-orange-400 text-right">{fmt(item.purchaseValue)}</td>
                           <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-400 text-right">{fmt(item.sellingPrice)}</td>
-
                           <td className="px-5 py-3.5 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">{fmt(item.sellingValue)}</td>
                           <td className="px-5 py-3.5 text-right">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                              isOut
-                                ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                                : isLow
-                                ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                              isOut ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                              : isLow ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                              : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                             }`}>
                               {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}
                             </span>
@@ -263,7 +252,7 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
                       )
                     })}
                     {paginated.length === 0 && (
-                      <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">No items found</td></tr>
+                      <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-gray-400 dark:text-gray-500">No items found</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -322,17 +311,11 @@ export default function InventoryReport({ isSuperAdmin, branches }: Props) {
                   Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, items.length)} of {items.length}
                 </p>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >‹</button>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all">‹</button>
                   <span className="text-sm text-gray-600 dark:text-gray-400">{page} / {totalPages}</span>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >›</button>
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all">›</button>
                 </div>
               </div>
             )}

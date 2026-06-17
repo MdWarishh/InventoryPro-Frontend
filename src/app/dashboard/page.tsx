@@ -115,7 +115,7 @@ export default function DashboardPage() {
     isFetching: statsFetching,
   } = useQuery({
     queryKey: ['dashboard-stats', globalBranchId],
-    queryFn: () => reportsService.getDashboard(globalBranchId || undefined),
+  queryFn: () => reportsService.getDashboard({ branchId: globalBranchId || undefined }),
     staleTime: 2 * 60 * 1000,
   })
 
@@ -149,7 +149,7 @@ export default function DashboardPage() {
 
   const { data: lowStockData, isLoading: lowStockLoading } = useQuery({
     queryKey: ['low-stock-dashboard', globalBranchId],
-    queryFn: () => reportsService.getLowStock(globalBranchId || undefined),
+   queryFn: () => reportsService.getLowStock({ branchId: globalBranchId || undefined }),
     staleTime: 5 * 60 * 1000,
   })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Settings2, RefreshCw, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -11,6 +11,8 @@ import { AdminStatsCards } from './_components/AdminStatsCards'
 import { AdminFiltersBar } from './_components/AdminFiltersBar'
 import { AttendanceSettingsSheet } from './_components/AttendanceSettingsSheet'
 import { useAttendanceStats } from '@/hooks/useAttendanceStats'
+import { useBranchFilter } from '@/hooks/useBranchFilter'
+import { useBranchStore } from '@/store/branch.store'
 
 const now = new Date()
 
@@ -20,9 +22,21 @@ export default function AdminAttendancePage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [calendarUser, setCalendarUser] = useState<{ id: string; name: string } | null>(null)
   const [autoAbsentLoading, setAutoAbsentLoading] = useState(false)
-  const [tableKey, setTableKey] = useState(0) // force table refetch
+  const [tableKey, setTableKey] = useState(0)
 
-  const filters = useMemo(() => ({ month, year }), [month, year])
+  const { branchId: globalBranchId } = useBranchFilter()
+  const branches = useBranchStore((s) => s.branches)
+
+  // Branch change pe table force refetch
+  useEffect(() => {
+    setTableKey((k) => k + 1)
+  }, [globalBranchId])
+
+  const filters = useMemo(
+    () => ({ month, year, branchId: globalBranchId || undefined }),
+    [month, year, globalBranchId]
+  )
+
   const { stats, loading: statsLoading, refetch: refetchStats } = useAttendanceStats(filters)
 
   const handleAutoAbsent = async () => {
@@ -56,6 +70,11 @@ export default function AdminAttendancePage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Monitor employee attendance and working hours
+            {globalBranchId && (
+              <span className="ml-2 text-indigo-500 font-medium">
+                · {branches.find(b => b.id === globalBranchId)?.name}
+              </span>
+            )}
           </p>
         </div>
 
@@ -88,11 +107,12 @@ export default function AdminAttendancePage() {
         <AdminFiltersBar
           month={month}
           year={year}
-          onMonthChange={setMonth}
-          onYearChange={setYear}
+          onMonthChange={(m) => { setMonth(m); setTableKey((k) => k + 1) }}
+          onYearChange={(y) => { setYear(y); setTableKey((k) => k + 1) }}
           onReset={() => {
             setMonth(now.getMonth() + 1)
             setYear(now.getFullYear())
+            setTableKey((k) => k + 1)
           }}
         />
 
