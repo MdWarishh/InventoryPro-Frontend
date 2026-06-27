@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, AlertCircle, Loader2, ArrowRight, Hash, IndianRupee, CalendarDays, FileText } from 'lucide-react'
 import { branchesService, dealersService } from '@/services/dealers.service'
-import type { CreateDealerStockOutPayload, StockSummaryItem, Branch, UnbilledSerial } from '@/types/dealers.types'
+import type { CreateDealerStockOutPayload, StockSummaryItem, Branch } from '@/types/dealers.types'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -16,6 +16,17 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface DealerSerial {
+  id: string
+  serialNumber: string
+  status: string
+  dealerBillingStatus: string | null
+  historicalStockId?: string | null
+  isManual?: boolean
+}
 
 interface Props {
   open: boolean
@@ -30,6 +41,14 @@ const EMPTY: CreateDealerStockOutPayload = {
   productId: '', branchId: '', quantity: 1, salePrice: 0, date: '', notes: '',
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Manual product ke liye id null hoti hai — unique key banao
+const getProductKey = (product: StockSummaryItem['product']) =>
+  product.id ?? `manual__${product.name}`
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function RecordSaleModal({ open, onClose, onSubmit, dealerName, dealerId, stockSummary }: Props) {
   const [form, setForm] = useState<CreateDealerStockOutPayload>(EMPTY)
   const [branches, setBranches] = useState<Branch[]>([])
@@ -38,18 +57,23 @@ export default function RecordSaleModal({ open, onClose, onSubmit, dealerName, d
   const [error, setError] = useState<string | null>(null)
 
   // Serial number state
-  const [dealerSerials, setDealerSerials] = useState<UnbilledSerial[]>([])
+  const [dealerSerials, setDealerSerials] = useState<DealerSerial[]>([])
   const [selectedSerialIds, setSelectedSerialIds] = useState<string[]>([])
   const [loadingSerials, setLoadingSerials] = useState(false)
 
   const availableProducts = stockSummary.filter((s) => s.balance > 0)
-  const getProductKey = (product: StockSummaryItem['product']) =>
-  product.id ?? `manual__${product.name}`
-const selectedSummary = stockSummary.find((s) => getProductKey(s.product) === form.productId)
-const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
+
+  // form.productId ab "manual__ProductName" ya real productId hoga
+  const selectedSummary = stockSummary.find((s) => getProductKey(s.product) === form.productId)
+  const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
   const isSerialProduct = selectedSummary?.product.hasSerialNumbers ?? false
+
+  // Serial section — real serial product ya manual historical dono ke liye dikhao
+  const showSerialSection = (isSerialProduct || isHistoricalManual) && !!form.productId
+
   const maxQty = selectedSummary?.balance ?? 0
-  const effectiveQty = isSerialProduct ? selectedSerialIds.length : form.quantity
+  // Manual historical ke liye bhi qty = selected serials
+  const effectiveQty = (isSerialProduct || isHistoricalManual) ? selectedSerialIds.length : form.quantity
   const total = effectiveQty * form.salePrice
 
   // Reset + load branches on open
@@ -67,26 +91,30 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
       .finally(() => setLoadingBranches(false))
   }, [open])
 
-  // Fetch dealer's TRANSFERRED serials when serial product selected
-  // branchId serial fetch mein mat bhejo — serials stockInId se linked hain, branchId se nahi
+  // Fetch serials jab product select ho — real ya manual dono ke liye
   useEffect(() => {
     setSelectedSerialIds([])
     setDealerSerials([])
-    if (!form.productId || !isSerialProduct || !dealerId) return
+    if (!form.productId || !dealerId) return
+    if (!isSerialProduct && !isHistoricalManual) return
 
     setLoadingSerials(true)
-    dealersService.getDealerSerials(dealerId, form.productId)
+
+    const actualProductId = isHistoricalManual ? undefined : form.productId
+    const productName = isHistoricalManual ? selectedSummary?.product.name : undefined
+
+    dealersService.getDealerSerials(dealerId, actualProductId, undefined, productName)
       .then((res) => setDealerSerials(res.data))
       .catch(() => setDealerSerials([]))
       .finally(() => setLoadingSerials(false))
-  }, [form.productId, isSerialProduct, dealerId])
+  }, [form.productId, dealerId, isSerialProduct, isHistoricalManual])
 
   // Serial products: quantity = selected serials count
   useEffect(() => {
-    if (isSerialProduct) {
+    if (isSerialProduct || isHistoricalManual) {
       setForm((f) => ({ ...f, quantity: selectedSerialIds.length || 1 }))
     }
-  }, [selectedSerialIds, isSerialProduct])
+  }, [selectedSerialIds, isSerialProduct, isHistoricalManual])
 
   const toggleSerial = (id: string) => {
     setSelectedSerialIds((prev) =>
@@ -101,27 +129,36 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
         [k]: e.target.type === 'number' ? Number(e.target.value) : e.target.value,
       }))
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    if (!form.productId) return setError('Please select a product')
-    if (!form.branchId) return setError('Please select a branch')
-    if (isSerialProduct && selectedSerialIds.length === 0) return setError('Please select serial numbers')
-    if (!isSerialProduct && form.quantity < 1) return setError('Quantity must be at least 1')
-    if (!isSerialProduct && form.quantity > maxQty) return setError(`Dealer only has ${maxQty} units of this product`)
-    try {
-      setSaving(true)
-      await onSubmit({
-        ...form,
-        quantity: isSerialProduct ? selectedSerialIds.length : form.quantity,
-        ...(isSerialProduct && { serialNumberIds: selectedSerialIds }),
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to record sale')
-    } finally {
-      setSaving(false)
-    }
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError(null)
+  if (!form.productId) return setError('Please select a product')
+  if (!form.branchId) return setError('Please select a branch')
+  if ((isSerialProduct || isHistoricalManual) && selectedSerialIds.length === 0)
+    return setError('Please select serial numbers')
+  if (!isSerialProduct && !isHistoricalManual && form.quantity < 1)
+    return setError('Quantity must be at least 1')
+  if (!isSerialProduct && !isHistoricalManual && form.quantity > maxQty)
+    return setError(`Dealer only has ${maxQty} units of this product`)
+
+  try {
+    setSaving(true)
+
+    const actualProductId = isHistoricalManual ? '' : form.productId
+
+    await onSubmit({
+      ...form,
+      productId: actualProductId,
+      quantity: (isSerialProduct || isHistoricalManual) ? selectedSerialIds.length : form.quantity,
+      ...((isSerialProduct || isHistoricalManual) && { serialNumberIds: selectedSerialIds }),
+      ...(isHistoricalManual && { productName: selectedSummary?.product.name }),  // ✅ ye line add karo
+    })
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to record sale')
+  } finally {
+    setSaving(false)
   }
+}
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -163,29 +200,35 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
                 <Label className="text-xs font-semibold">
                   Product <span className="text-destructive">*</span>
                 </Label>
-              <Select
-  value={form.productId}
-  onValueChange={(v) => {
-    const s = stockSummary.find((x) => getProductKey(x.product) === v)
-    setForm((f) => ({ ...f, productId: v, salePrice: s?.product.sellingPrice ?? 0, quantity: 1 }))
-    setSelectedSerialIds([])
-  }}
->
-  <SelectContent>
-    {availableProducts.map(({ product, balance }) => {
-      const key = getProductKey(product)
-      return (
-        <SelectItem key={key} value={key}>
-          <span className="font-medium">{product.name}</span>
-          <span className="text-muted-foreground ml-2 text-xs">— {balance} units</span>
-          {product.hasSerialNumbers && (
-            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-500 font-semibold border border-violet-100">S/N</span>
-          )}
-        </SelectItem>
-      )
-    })}
-  </SelectContent>
-</Select>
+                <Select
+                  value={form.productId}
+                  onValueChange={(v) => {
+                    const s = stockSummary.find((x) => getProductKey(x.product) === v)
+                    setForm((f) => ({ ...f, productId: v, salePrice: s?.product.sellingPrice ?? 0, quantity: 1 }))
+                    setSelectedSerialIds([])
+                  }}
+                >
+                  <SelectTrigger className="h-10 text-sm">
+                    <SelectValue placeholder="Select a product…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableProducts.map(({ product, balance }) => {
+                      const key = getProductKey(product)
+                      return (
+                        <SelectItem key={key} value={key}>
+                          <span className="font-medium">{product.name}</span>
+                          <span className="text-muted-foreground ml-2 text-xs">— {balance} units</span>
+                          {product.hasSerialNumbers && (
+                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-500 font-semibold border border-violet-100">S/N</span>
+                          )}
+                          {!product.id && (
+                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-semibold border border-amber-200">Manual</span>
+                          )}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
 
                 {selectedSummary && (
                   <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg">
@@ -198,10 +241,10 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
                       {selectedSummary.balance} with dealer
                     </Badge>
                     <Badge variant="outline" className="text-[10px] h-5 text-blue-600 border-blue-200 bg-blue-50">
-                      Given: {selectedSummary.given}
+                      Given: {selectedSummary.given + (selectedSummary.historicalIn ?? 0)}
                     </Badge>
                     <Badge variant="outline" className="text-[10px] h-5 text-emerald-600 border-emerald-200 bg-emerald-50">
-                      Sold: {selectedSummary.sold}
+                      Sold: {selectedSummary.sold + (selectedSummary.historicalOut ?? 0)}
                     </Badge>
                   </div>
                 )}
@@ -228,8 +271,8 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
                 </Select>
               </div>
 
-              {/* Serial Numbers — only for serialized products */}
-              {isSerialProduct && form.productId && (
+              {/* Serial Numbers — real serial product + manual historical dono ke liye */}
+              {showSerialSection && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -242,7 +285,11 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
                       {selectedSerialIds.length} selected
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Pick the serial numbers that were sold by the dealer</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {isHistoricalManual
+                      ? 'Historical stock ke serial numbers select karo jo bik gaye'
+                      : 'Pick the serial numbers that were sold by the dealer'}
+                  </p>
 
                   {loadingSerials ? (
                     <div className="flex items-center gap-2 py-3 px-3 bg-muted/50 rounded-lg border">
@@ -281,6 +328,11 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
                               <span className={`font-mono text-xs font-semibold ${isSelected ? 'text-emerald-700' : 'text-foreground'}`}>
                                 {serial.serialNumber}
                               </span>
+                              {serial.isManual && (
+                                <Badge variant="outline" className="ml-auto text-[9px] h-4 px-1 font-normal text-amber-600 border-amber-200 bg-amber-50">
+                                  Historical
+                                </Badge>
+                              )}
                             </button>
                           )
                         })}
@@ -297,11 +349,11 @@ const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">
                     Quantity <span className="text-destructive">*</span>
-                    {!isSerialProduct && maxQty > 0 && (
+                    {!isSerialProduct && !isHistoricalManual && maxQty > 0 && (
                       <span className="text-muted-foreground font-normal ml-1">(max {maxQty})</span>
                     )}
                   </Label>
-                  {isSerialProduct ? (
+                  {(isSerialProduct || isHistoricalManual) ? (
                     <div className="h-10 border border-border rounded-md flex items-center px-3 bg-muted/50 text-sm font-semibold text-muted-foreground tabular-nums select-none">
                       {selectedSerialIds.length || '—'}
                       <span className="ml-1.5 text-xs font-normal">(from serials)</span>

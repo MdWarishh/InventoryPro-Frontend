@@ -4,7 +4,7 @@ export type ModuleKey =
   | 'DASHBOARD' | 'USERS' | 'STOCK' | 'MEETINGS' | 'REPORTS'
   | 'BRANCHES' | 'NOTIFICATIONS' | 'PRODUCTS' | 'CATEGORIES'
   | 'DEALERS' | 'SETTINGS' | 'SALES' | 'STOCK_TRANSFER'
-  | 'EXPENSES' | 'ATTENDANCE'   // ← ADD
+  | 'EXPENSES' | 'ATTENDANCE' | 'TASKS'
 
 export interface Permission {
   module: ModuleKey
@@ -83,6 +83,7 @@ export const ALL_MODULES: { key: ModuleKey; label: string; icon: string; group: 
   { key: 'SALES',          label: 'Sales',            icon: '◆',  group: 'Operations' },
   { key: 'EXPENSES',       label: 'Expenses',         icon: '₹',  group: 'Operations' },  // ← ADD
   { key: 'ATTENDANCE',     label: 'Attendance',       icon: '◷',  group: 'Operations' },  // ← ADD
+  { key: 'TASKS',          label: 'Tasks',            icon: '✓',  group: 'Other' },
   { key: 'MEETINGS',       label: 'Meetings',         icon: '▷',  group: 'Other' },
   { key: 'NOTIFICATIONS',  label: 'Notifications',    icon: '◐',  group: 'Other' },
   { key: 'REPORTS',        label: 'Reports',          icon: '▨',  group: 'Other' },

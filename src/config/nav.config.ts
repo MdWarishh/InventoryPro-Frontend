@@ -3,7 +3,7 @@ import {
   FileText, Users2, GitBranch, BarChart3,
   Calendar, Bell, Settings, ArrowLeftRight,
   Palette, Receipt, User, Lock,
-  SatelliteDish, CalendarDays, Wallet,
+  SatelliteDish, CalendarDays, Wallet, ClipboardList,
 } from 'lucide-react'
 
 export type Role = 'SUPER_ADMIN' | 'BRANCH_ADMIN' | 'STAFF'
@@ -57,36 +57,53 @@ export const navItems: NavItem[] = [
   // 5. Invoices
   { label: 'Invoices', href: '/dashboard/invoices', icon: FileText },
 
-
-  // 7. Expenses
+  // 6. Expenses
   { label: 'Expenses', href: '/dashboard/expenses', icon: Wallet, module: 'EXPENSES' },
 
-  // 8. Meetings
+  // 7. Meetings
   { label: 'Meetings', href: '/dashboard/meetings', icon: Calendar, module: 'MEETINGS' },
 
-  // 9. Attendance
-  { label: 'Attendance', href: '/dashboard/attendance', icon: CalendarDays, module: 'ATTENDANCE' },
+  // 8. Attendance + Tasks → dropdown
+  {
+    label: 'Attendance',
+    href: '/dashboard/attendance',
+    icon: CalendarDays,
+    module: 'ATTENDANCE',
+    children: [
+      {
+        label: 'Attendance',
+        href: '/dashboard/attendance',
+        icon: CalendarDays,
+        module: 'ATTENDANCE',
+      },
+      {
+        label: 'Tasks',
+        href: '/dashboard/tasks',
+        icon: ClipboardList,
+      },
+    ],
+  },
 
-    // 6. Sales
+  // 9. Sales
   { label: 'Sales', href: '/dashboard/sales', icon: SatelliteDish, module: 'SALES' },
 
   // 10. Reports
   { label: 'Reports', href: '/dashboard/reports', icon: BarChart3, module: 'REPORTS' },
 
-  // 11. Settings → Users, Branches, Notifications, Appearance, Invoice Settings, Account, Security
+  // 11. Settings
   {
     label: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
     module: 'SETTINGS',
     children: [
-      { label: 'Users',             href: '/dashboard/users',                icon: Users2,   module: 'USERS' },
-      { label: 'Branches',          href: '/dashboard/branches',             icon: GitBranch, module: 'BRANCHES' },
-      { label: 'Notifications',     href: '/dashboard/notifications',        icon: Bell,      module: 'NOTIFICATIONS' },
-      { label: 'Appearance',        href: '/dashboard/settings/appearance',  icon: Palette },
-      { label: 'Invoice Settings',  href: '/dashboard/settings/invoice',     icon: Receipt },
-      { label: 'Account',           href: '/dashboard/settings/account',     icon: User },
-      { label: 'Security',          href: '/dashboard/settings/security',    icon: Lock },
+      { label: 'Users',            href: '/dashboard/users',               icon: Users2,    module: 'USERS' },
+      { label: 'Branches',         href: '/dashboard/branches',            icon: GitBranch, module: 'BRANCHES' },
+      { label: 'Notifications',    href: '/dashboard/notifications',       icon: Bell,      module: 'NOTIFICATIONS' },
+      { label: 'Appearance',       href: '/dashboard/settings/appearance', icon: Palette },
+      { label: 'Invoice Settings', href: '/dashboard/settings/invoice',    icon: Receipt },
+      { label: 'Account',          href: '/dashboard/settings/account',    icon: User },
+      { label: 'Security',         href: '/dashboard/settings/security',   icon: Lock },
     ],
   },
 ]

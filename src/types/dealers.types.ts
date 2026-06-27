@@ -229,6 +229,7 @@ export interface CreateDealerStockOutPayload {
   date?: string
   notes?: string
   serialNumberIds?: string[]
+  productName?: string   
 }
 
 export interface CreateInvoicePayload {
@@ -300,4 +301,14 @@ export interface HistoricalStockRes {
     records: DealerHistoricalStock[]
     pagination: Pagination
   }
+}
+
+export interface CreateSalesReturnPayload {
+  productId: string
+  branchId: string
+  quantity: number
+  serialNumberIds?: string[]
+  notes?: string
+  date?: string
+  productName?: string   // ✅ ye bhi add karo
 }

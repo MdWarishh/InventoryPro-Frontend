@@ -91,11 +91,20 @@ export const dealersService = {
     return data as StockSummaryRes
   },
 
-  // GET /dealers/:id/serials?productId=xxx&branchId=xxx
-  // Returns serials with status TRANSFERRED that dealer has (given but not sold)
-  getDealerSerials: async (id: string, productId?: string, branchId?: string) => {
-    const { data } = await apiClient.get(`/dealers/${id}/serials${qs({ productId, branchId })}`)
-    return data as { data: { id: string; serialNumber: string; status: string; dealerBillingStatus: string | null }[] }
+  // GET /dealers/:id/serials?productId=xxx&branchId=xxx&productName=xxx
+  // Returns serials — TRANSFERRED (real) + DEALER_HISTORICAL (inventory linked) + manual string serials
+  getDealerSerials: async (id: string, productId?: string, branchId?: string, productName?: string) => {
+    const { data } = await apiClient.get(`/dealers/${id}/serials${qs({ productId, branchId, productName })}`)
+    return data as {
+      data: {
+        id: string
+        serialNumber: string
+        status: string
+        dealerBillingStatus: string | null
+        historicalStockId?: string | null
+        isManual?: boolean
+      }[]
+    }
   },
 
   createStockOut: async (id: string, d: CreateDealerStockOutPayload) => {

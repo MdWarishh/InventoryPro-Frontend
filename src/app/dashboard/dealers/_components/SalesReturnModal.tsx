@@ -5,9 +5,7 @@ import {
   Undo2, AlertCircle, Loader2, Hash, CalendarDays, FileText,
 } from 'lucide-react'
 import { branchesService, dealersService } from '@/services/dealers.service'
-import type {
-  StockSummaryItem, Branch,
-} from '@/types/dealers.types'
+import type { StockSummaryItem, Branch } from '@/types/dealers.types'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -37,6 +35,8 @@ interface DealerSerial {
   serialNumber: string
   status: string
   dealerBillingStatus: string | null
+  historicalStockId?: string | null
+  isManual?: boolean
 }
 
 interface Props {
@@ -51,6 +51,11 @@ interface Props {
 const EMPTY: CreateSalesReturnPayload = {
   productId: '', branchId: '', quantity: 1, notes: '', date: '',
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const getProductKey = (product: StockSummaryItem['product']) =>
+  product.id ?? `manual__${product.name}`
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -68,12 +73,17 @@ export default function SalesReturnModal({
   const [selectedSerialIds, setSelectedSerialIds] = useState<string[]>([])
   const [loadingSerials, setLoadingSerials] = useState(false)
 
-  // Products with balance > 0
   const availableProducts = stockSummary.filter((s) => s.balance > 0)
-  const selectedSummary = stockSummary.find((s) => s.product.id === form.productId)
+
+  const selectedSummary = stockSummary.find((s) => getProductKey(s.product) === form.productId)
+  const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
   const isSerialProduct = selectedSummary?.product.hasSerialNumbers ?? false
+
+  // Serial section — real serial product + manual historical dono ke liye
+  const showSerialSection = (isSerialProduct || isHistoricalManual) && !!form.productId
+
   const maxQty = selectedSummary?.balance ?? 0
-  const effectiveQty = isSerialProduct ? selectedSerialIds.length : form.quantity
+  const effectiveQty = (isSerialProduct || isHistoricalManual) ? selectedSerialIds.length : form.quantity
 
   // Reset on open + load branches
   useEffect(() => {
@@ -90,25 +100,30 @@ export default function SalesReturnModal({
       .finally(() => setLoadingBranches(false))
   }, [open])
 
-  // Fetch dealer serials when serial product selected
+  // Fetch serials jab product select ho
   useEffect(() => {
     setSelectedSerialIds([])
     setDealerSerials([])
-    if (!form.productId || !isSerialProduct || !dealerId) return
+    if (!form.productId || !dealerId) return
+    if (!isSerialProduct && !isHistoricalManual) return
 
     setLoadingSerials(true)
-    dealersService.getDealerSerials(dealerId, form.productId)
+
+    const actualProductId = isHistoricalManual ? undefined : form.productId
+    const productName = isHistoricalManual ? selectedSummary?.product.name : undefined
+
+    dealersService.getDealerSerials(dealerId, actualProductId, undefined, productName)
       .then((res) => setDealerSerials(res.data))
       .catch(() => setDealerSerials([]))
       .finally(() => setLoadingSerials(false))
-  }, [form.productId, isSerialProduct, dealerId])
+  }, [form.productId, dealerId, isSerialProduct, isHistoricalManual])
 
-  // Serial product: qty = selected count
+  // Serial qty sync
   useEffect(() => {
-    if (isSerialProduct) {
+    if (isSerialProduct || isHistoricalManual) {
       setForm((f) => ({ ...f, quantity: selectedSerialIds.length || 1 }))
     }
-  }, [selectedSerialIds, isSerialProduct])
+  }, [selectedSerialIds, isSerialProduct, isHistoricalManual])
 
   const toggleSerial = (id: string) => {
     setSelectedSerialIds((prev) =>
@@ -123,27 +138,39 @@ export default function SalesReturnModal({
         [k]: e.target.type === 'number' ? Number(e.target.value) : e.target.value,
       }))
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    if (!form.productId) return setError('Please select a product')
-    if (!form.branchId) return setError('Please select a branch to return stock to')
-    if (isSerialProduct && selectedSerialIds.length === 0) return setError('Please select serial numbers to return')
-    if (!isSerialProduct && form.quantity < 1) return setError('Quantity must be at least 1')
-    if (!isSerialProduct && form.quantity > maxQty) return setError(`Dealer only has ${maxQty} units to return`)
-    try {
-      setSaving(true)
-      await onSubmit({
-        ...form,
-        quantity: isSerialProduct ? selectedSerialIds.length : form.quantity,
-        ...(isSerialProduct && selectedSerialIds.length > 0 && { serialNumberIds: selectedSerialIds }),
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to record return')
-    } finally {
-      setSaving(false)
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError(null)
+  if (!form.productId) return setError('Please select a product')
+  if (!form.branchId) return setError('Please select a branch to return stock to')
+  if ((isSerialProduct || isHistoricalManual) && selectedSerialIds.length === 0)
+    return setError('Please select serial numbers to return')
+  if (!isSerialProduct && !isHistoricalManual && form.quantity < 1)
+    return setError('Quantity must be at least 1')
+  if (!isSerialProduct && !isHistoricalManual && form.quantity > maxQty)
+    return setError(`Dealer only has ${maxQty} units to return`)
+
+  try {
+    setSaving(true)
+
+    const actualProductId = isHistoricalManual ? '' : form.productId
+
+    await onSubmit({
+      ...form,
+      productId: actualProductId,
+      quantity: (isSerialProduct || isHistoricalManual) ? selectedSerialIds.length : form.quantity,
+      ...((isSerialProduct || isHistoricalManual) && selectedSerialIds.length > 0 && {
+        serialNumberIds: selectedSerialIds,
+      }),
+      ...(isHistoricalManual && { productName: selectedSummary?.product.name }),  // ✅ ye line add karo
+    })
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to record return')
+  } finally {
+    setSaving(false)
   }
+}
+
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -190,27 +217,36 @@ export default function SalesReturnModal({
                   value={form.productId}
                   onValueChange={(v) => {
                     setForm((f) => ({ ...f, productId: v, quantity: 1 }))
+                    setSelectedSerialIds([])
                   }}
                 >
                   <SelectTrigger className="h-10 text-sm">
                     <SelectValue placeholder="Select product to return…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableProducts.map(({ product, balance }) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{product.name}</span>
-                          {product.sku && (
-                            <span className="text-[10px] font-mono text-muted-foreground">
-                              {product.sku}
-                            </span>
-                          )}
-                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-1">
-                            {balance} with dealer
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {availableProducts.map(({ product, balance }) => {
+                      const key = getProductKey(product)
+                      return (
+                        <SelectItem key={key} value={key}>
+                          <div className="flex items-center gap-2">
+                            <span>{product.name}</span>
+                            {product.sku && (
+                              <span className="text-[10px] font-mono text-muted-foreground">
+                                {product.sku}
+                              </span>
+                            )}
+                            <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-1">
+                              {balance} with dealer
+                            </Badge>
+                            {!product.id && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-amber-600 border-amber-200 bg-amber-50">
+                                Manual
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -237,8 +273,8 @@ export default function SalesReturnModal({
                 <p className="text-[11px] text-muted-foreground">Stock will be added back to this branch</p>
               </div>
 
-              {/* Serial Numbers (only for serial products) */}
-              {form.productId && isSerialProduct && (
+              {/* Serial Numbers — real serial product + manual historical dono ke liye */}
+              {showSerialSection && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold">
@@ -322,11 +358,13 @@ export default function SalesReturnModal({
                               <span className={`font-mono text-xs font-semibold ${isSelected ? 'text-amber-700 dark:text-amber-400' : 'text-foreground'}`}>
                                 {serial.serialNumber}
                               </span>
-                              {serial.dealerBillingStatus && (
-                                <Badge
-                                  variant="outline"
-                                  className="ml-auto text-[9px] h-4 px-1 font-normal"
-                                >
+                              {serial.isManual && (
+                                <Badge variant="outline" className="ml-auto text-[9px] h-4 px-1 font-normal text-amber-600 border-amber-200 bg-amber-50">
+                                  Historical
+                                </Badge>
+                              )}
+                              {!serial.isManual && serial.dealerBillingStatus && (
+                                <Badge variant="outline" className="ml-auto text-[9px] h-4 px-1 font-normal">
                                   {serial.dealerBillingStatus}
                                 </Badge>
                               )}
@@ -347,11 +385,11 @@ export default function SalesReturnModal({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold">
                     Quantity <span className="text-destructive">*</span>
-                    {!isSerialProduct && maxQty > 0 && (
+                    {!isSerialProduct && !isHistoricalManual && maxQty > 0 && (
                       <span className="text-muted-foreground font-normal ml-1">(max {maxQty})</span>
                     )}
                   </Label>
-                  {isSerialProduct ? (
+                  {(isSerialProduct || isHistoricalManual) ? (
                     <div className="h-10 border border-border rounded-md flex items-center px-3 bg-muted/50 text-sm font-semibold text-muted-foreground tabular-nums select-none">
                       {selectedSerialIds.length || '—'}
                       <span className="ml-1.5 text-xs font-normal">(from serials)</span>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Package, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotificationStore } from '@/store/notification.store'
@@ -21,7 +21,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const { user, hasPermission } = useAuth()
   const unreadCount = useNotificationStore((s) => s.unreadCount)
-  const [logoError, setLogoError] = useState(false);
+  const [logoError, setLogoError] = useState(false)
   const {
     branches,
     selectedBranchId,
@@ -32,28 +32,31 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
 
-  // SUPER_ADMIN login hone pe branches fetch karo
-  // aur user ka apna branch userBranchId mein set karo
   useEffect(() => {
-    if (user?.role === 'SUPER_ADMIN') {
-      fetchBranches()
-    }
-    // user.branchId → jis branch se login kiya
-    if (user?.branchId) {
-      setUserBranch(user.branchId)
-    }
+    if (user?.role === 'SUPER_ADMIN') fetchBranches()
+    if (user?.branchId) setUserBranch(user.branchId)
   }, [user?.role, user?.branchId])
 
+  // Auto-open dropdown agar current path kisi child ka hai
   useEffect(() => {
-    const settingsChildPaths = [
-      '/dashboard/settings',
-      '/dashboard/users',
-      '/dashboard/branches',
-      '/dashboard/notifications',
-    ]
-    if (settingsChildPaths.some((p) => pathname.startsWith(p))) {
-      setOpenMenus((prev) => ({ ...prev, '/dashboard/settings': true }))
+    const autoOpenPaths: Record<string, string[]> = {
+      '/dashboard/settings': [
+        '/dashboard/settings',
+        '/dashboard/users',
+        '/dashboard/branches',
+        '/dashboard/notifications',
+      ],
+      '/dashboard/attendance': [
+        '/dashboard/attendance',
+        '/dashboard/tasks',
+      ],
     }
+
+    Object.entries(autoOpenPaths).forEach(([menuHref, childPaths]) => {
+      if (childPaths.some((p) => pathname.startsWith(p))) {
+        setOpenMenus((prev) => ({ ...prev, [menuHref]: true }))
+      }
+    })
   }, [pathname])
 
   const toggleMenu = (href: string) => {
@@ -61,9 +64,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   }
 
   const visibleItems = navItems.filter((item) => {
-    if (item.module) {
-      return hasPermission(item.module, 'canView')
-    }
+    if (item.module) return hasPermission(item.module, 'canView')
     return true
   })
 
@@ -72,7 +73,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return 0
   }
 
-  // Notifications badge Settings parent pe bhi dikhao agar collapsed ho
   const getParentBadge = (item: NavItem) => {
     if (item.children) {
       return item.children.reduce((acc, c) => acc + getBadgeCount((c as NavItem).badge), 0)
@@ -102,34 +102,29 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
     >
       {/* ── Logo ── */}
-    
- <div
-      className={cn(
-        'flex items-center h-16 px-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0',
-        collapsed ? 'justify-center' : 'gap-3'
-      )}
-    >
-      {/* Logo */}
-      {!logoError && (
-        <img
-          src="/logo.jpeg"
-          alt="Logo"
-          onError={() => setLogoError(true)}
-          className={cn(
-  'object-contain flex-shrink-0',
-  collapsed ? 'h-10 w-14' : 'h-12 w-auto max-w-[220px]'
-)}
-        />
-      )}
-
-      {/* Fallback Name (only if logo fails) */}
-      {logoError && !collapsed && (
-        <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
-          Limra Hearing & Clinic
-        </span>
-      )}
-    </div>
-  
+      <div
+        className={cn(
+          'flex items-center h-16 px-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0',
+          collapsed ? 'justify-center' : 'gap-3'
+        )}
+      >
+        {!logoError && (
+          <img
+            src="/logo.jpeg"
+            alt="Logo"
+            onError={() => setLogoError(true)}
+            className={cn(
+              'object-contain flex-shrink-0',
+              collapsed ? 'h-10 w-14' : 'h-12 w-auto max-w-[220px]'
+            )}
+          />
+        )}
+        {logoError && !collapsed && (
+          <span className="text-sm font-bold text-slate-900 dark:text-white truncate">
+            Limra Hearing & Clinic
+          </span>
+        )}
+      </div>
 
       {/* ── Branch Selector (SUPER_ADMIN only) ── */}
       {user?.role === 'SUPER_ADMIN' && (
@@ -155,17 +150,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           const parentActive = isParentActive(item)
           const isOpen = openMenus[item.href] ?? false
 
-          // ── Item WITH submenu ──────────────────
+          // ── Item WITH submenu ──
           if (hasChildren) {
             const parentBadge = getParentBadge(item)
             return (
               <div key={item.href} className="mb-0.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (collapsed) return
-                    toggleMenu(item.href)
-                  }}
+                  onClick={() => { if (!collapsed) toggleMenu(item.href) }}
                   className={cn(
                     'group relative w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
                     parentActive
@@ -219,7 +211,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       .filter((c) => !c.roles || (user?.role && c.roles.includes(user.role as any)))
                       .map((child) => {
                         const ChildIcon = child.icon
-                        const childActive = pathname === child.href
+                        const childActive = isActive(child.href)
 
                         return (
                           <Link
@@ -253,7 +245,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             )
           }
 
-          // ── Regular nav item ────────────────────────────────────
+          // ── Regular nav item ──
           const active = isActive(item.href)
 
           return (
@@ -282,9 +274,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 )}
               />
 
-              {!collapsed && (
-                <span className="flex-1 truncate">{item.label}</span>
-              )}
+              {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
 
               {badge > 0 && (
                 <span
@@ -349,11 +339,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        {collapsed ? (
-          <ChevronRight className="h-3.5 w-3.5" />
-        ) : (
-          <ChevronLeft className="h-3.5 w-3.5" />
-        )}
+        {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
       </button>
     </aside>
   )

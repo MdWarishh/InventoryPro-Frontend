@@ -12,24 +12,24 @@ interface DeleteUserConfirmProps {
 export function DeleteUserConfirm({ userName, isLoading, onConfirm, onCancel }: DeleteUserConfirmProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 slide-in-from-bottom-4 duration-200">
-        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <UserX size={20} className="text-red-600" />
+      <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 border border-transparent dark:border-gray-800 rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 slide-in-from-bottom-4 duration-200">
+        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+          <UserX size={20} className="text-red-600 dark:text-red-400" />
         </div>
-        <h3 className="text-base font-bold text-gray-900 text-center mb-2">Deactivate User</h3>
-        <p className="text-sm text-gray-500 text-center leading-relaxed">
+        <h3 className="text-base font-bold text-gray-900 dark:text-gray-50 text-center mb-2">Deactivate User</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center leading-relaxed">
           Are you sure you want to deactivate{' '}
-          <span className="font-semibold text-gray-800">"{userName}"</span>?
+          <span className="font-semibold text-gray-800 dark:text-gray-200">"{userName}"</span>?
           They will not be able to log in.
         </p>
         <div className="flex gap-3 mt-6">
           <button type="button" onClick={onCancel} disabled={isLoading}
-            className="flex-1 h-10 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-60">
+            className="flex-1 h-10 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all disabled:opacity-60">
             Cancel
           </button>
           <button type="button" onClick={onConfirm} disabled={isLoading}
-            className="flex-1 h-10 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+            className="flex-1 h-10 text-sm font-semibold bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded-lg transition-all disabled:opacity-60 flex items-center justify-center gap-2">
             {isLoading && <Loader2 size={13} className="animate-spin" />}
             Deactivate
           </button>

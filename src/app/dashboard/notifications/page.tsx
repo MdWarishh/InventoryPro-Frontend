@@ -85,21 +85,21 @@ export default function NotificationsPage() {
       />
 
       {/* Notification list */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 size={24} className="animate-spin text-gray-400" />
-            <p className="text-sm text-gray-400">Loading notifications...</p>
+            <Loader2 size={24} className="animate-spin text-gray-400 dark:text-gray-500" />
+            <p className="text-sm text-gray-400 dark:text-gray-500">Loading notifications...</p>
           </div>
 
         ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
-              <Bell size={24} className="text-gray-300" />
+            <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Bell size={24} className="text-gray-300 dark:text-gray-600" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-gray-500">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                 {unreadOnly
                   ? 'Koi unread notification nahi hai'
                   : activeType !== 'ALL'
@@ -110,7 +110,7 @@ export default function NotificationsPage() {
               {(unreadOnly || activeType !== 'ALL') && (
                 <button
                   onClick={() => { handleToggleUnread(false); handleTypeChange('ALL') }}
-                  className="text-xs text-blue-500 hover:text-blue-600 mt-1 transition-colors"
+                  className="text-xs text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 mt-1 transition-colors"
                 >
                   Saari notifications dekho →
                 </button>
@@ -122,9 +122,9 @@ export default function NotificationsPage() {
           <>
             {/* Subtle loading overlay jab refetch ho */}
             {isFetching && !isLoading && (
-              <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-50/60 border-b border-blue-100">
-                <Loader2 size={12} className="animate-spin text-blue-400" />
-                <p className="text-xs text-blue-500">Refreshing...</p>
+              <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-50/60 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900">
+                <Loader2 size={12} className="animate-spin text-blue-400 dark:text-blue-500" />
+                <p className="text-xs text-blue-500 dark:text-blue-400">Refreshing...</p>
               </div>
             )}
 
@@ -138,21 +138,21 @@ export default function NotificationsPage() {
       {/* Pagination */}
       {pagination && pagination.pages > 1 && (
         <div className="flex items-center justify-between mt-5">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 dark:text-gray-500">
             Page {page} of {pagination.pages} · {pagination.total} total
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 border border-gray-200 text-sm text-gray-600 rounded-xl disabled:opacity-40 hover:bg-gray-50 transition-all bg-white shadow-sm"
+              className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 rounded-xl disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900 shadow-sm"
             >
               ← Prev
             </button>
             <button
               onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
               disabled={page >= pagination.pages}
-              className="px-4 py-2 border border-gray-200 text-sm text-gray-600 rounded-xl disabled:opacity-40 hover:bg-gray-50 transition-all bg-white shadow-sm"
+              className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 rounded-xl disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900 shadow-sm"
             >
               Next →
             </button>
