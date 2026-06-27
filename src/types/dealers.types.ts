@@ -90,8 +90,11 @@ export interface StockSummaryItem {
   given: number
   sold: number
   balance: number
-  soldInMonth: number       
-  salesReturn: number 
+  soldInMonth: number
+  salesReturn: number
+  historicalIn?: number
+  historicalOut?: number
+  isHistoricalOnly?: boolean
   availableSerialNumbers?: SerialNumberRef[]
 }
 
@@ -246,4 +249,55 @@ export interface HistoryFilters {
   limit?: number
   startDate?: string
   endDate?: string
+}
+
+export interface DealersOverviewStats {
+  totalWholesaleRevenue: number
+  totalSale: number
+  allProfit: number
+  productsInHand: number
+  lowStockItems: number
+}
+
+export interface DealersOverviewStatsRes {
+  data: DealersOverviewStats
+}
+
+// ─── Historical Stock ─────────────────────────────────────────────────────────
+
+export type DealerHistoricalType = 'IN' | 'OUT'
+
+export interface DealerHistoricalStock {
+  id: string
+  dealerId: string
+  productId?: string | null
+  productName: string
+  serialNumbers: string[]
+  type: DealerHistoricalType
+  quantity: number
+  purchasePrice: number
+  salePrice: number
+  date: string
+  notes?: string | null
+  createdAt: string
+  product?: Product | null
+}
+
+export interface AddHistoricalStockPayload {
+  productId?: string
+  productName: string
+  type: DealerHistoricalType
+  quantity: number
+  purchasePrice: number
+  salePrice: number
+  serialNumbers: string[]
+  date: string
+  notes?: string
+}
+
+export interface HistoricalStockRes {
+  data: {
+    records: DealerHistoricalStock[]
+    pagination: Pagination
+  }
 }

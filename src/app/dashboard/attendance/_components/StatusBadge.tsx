@@ -20,6 +20,10 @@ const config: Record<AttendanceStatus, { label: string; className: string }> = {
     label: 'Absent',
     className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800',
   },
+  LEAVE: {
+    label: 'Leave',
+    className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800',
+  },
 }
 
 export function StatusBadge({ status }: Props) {

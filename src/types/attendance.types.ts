@@ -1,6 +1,6 @@
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export type AttendanceStatus = 'PRESENT' | 'HALF_DAY' | 'ABSENT'
+export type AttendanceStatus = 'PRESENT' | 'HALF_DAY' | 'ABSENT' | 'LEAVE'
 
 // ─── Core Models ──────────────────────────────────────────────────────────────
 
@@ -86,6 +86,7 @@ export interface GetAllAttendanceParams {
   startDate?: string
   endDate?: string
   userId?: string
+  branchId?: string
   page?: number
   limit?: number
 }
@@ -93,4 +94,20 @@ export interface GetAllAttendanceParams {
 export interface GetUserAttendanceParams {
   month?: number
   year?: number
+}
+
+// ─── NEW: Super Admin edit payload ───────────────────────────────────────────
+
+export interface EditAttendancePayload {
+  checkInTime?: string | null   // ISO string ya null (clear karne ke liye)
+  checkOutTime?: string | null  // ISO string ya null
+  status?: AttendanceStatus     // Manually override karo
+  notes?: string | null
+}
+
+// ─── NEW: User leave payload ──────────────────────────────────────────────────
+
+export interface MarkLeavePayload {
+  date: string   // YYYY-MM-DD format
+  notes?: string | null
 }

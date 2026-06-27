@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, ShoppingCart, Hash } from 'lucide-react'
+import { Loader2, ShoppingCart, Hash, Pencil } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -44,6 +44,22 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+// Minimal shape needed from a sale record to prefill edit mode.
+// Matches the SaleItem shape used in SalesTable, with the additional
+// raw ids (productId/branchId/dealerId) the API actually needs for an update.
+export interface EditableSale {
+  id: string
+  productId: string
+  branchId?: string
+  quantity: number
+  sellingPrice?: number
+  dealerId?: string | null
+  customerName?: string | null
+  customerPhone?: string | null
+  notes?: string | null
+  serialNumbers?: { id: string; serialNumber: string }[]
+}
+
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
     <Label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
@@ -53,18 +69,32 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
   )
 }
 
-interface Props { onClose: () => void }
+interface Props {
+  onClose: () => void
+  /** When provided, the modal runs in edit mode and PATCHes this sale instead of creating a new one. */
+  editingSale?: EditableSale | null
+}
 
-export function RecordSaleModal({ onClose }: Props) {
+export function RecordSaleModal({ onClose, editingSale }: Props) {
   const qc = useQueryClient()
   const { isSuperAdmin, user } = useAuth()
+  const isEditMode = !!editingSale
 
   const [selectedSerialIds, setSelectedSerialIds] = useState<string[]>([])
   const [serialError, setSerialError] = useState<string | null>(null)
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { quantity: 1, sellingPrice: 0 },
+    defaultValues: {
+      quantity: editingSale?.quantity ?? 1,
+      sellingPrice: editingSale?.sellingPrice ?? 0,
+      productId: editingSale?.productId ?? '',
+      branchId: editingSale?.branchId,
+      dealerId: editingSale?.dealerId ?? '',
+      customerName: editingSale?.customerName ?? '',
+      customerPhone: editingSale?.customerPhone ?? '',
+      note: editingSale?.notes ?? '',
+    },
   })
 
   const { data: productsData } = useQuery({
@@ -94,16 +124,43 @@ export function RecordSaleModal({ onClose }: Props) {
   const isSerialProduct = selectedProduct?.hasSerialNumbers ?? false
   const quantity = watch('quantity')
 
-  const { data: availableSerials = [], isFetching: serialsFetching } = useQuery({
+  // Available serials for the current product+branch (excludes already-sold ones,
+  // except the ones already attached to this sale when editing — those get merged in below).
+  const { data: availableSerialsRaw = [], isFetching: serialsFetching } = useQuery({
     queryKey: ['serials-available', selectedProductId, effectiveBranchId],
     queryFn: () => serialService.getAvailable(selectedProductId, effectiveBranchId),
     enabled: !!selectedProductId && isSerialProduct && !!effectiveBranchId,
   })
 
+  // In edit mode, the serials originally attached to this sale are status=SOLD,
+  // so they won't show up in "available" — merge them back in so the user can
+  // still see/deselect them.
+  const availableSerials = (() => {
+    if (!isEditMode || !editingSale?.serialNumbers?.length) return availableSerialsRaw
+    const existingIds = new Set(availableSerialsRaw.map((s) => s.id))
+    const merged = [...availableSerialsRaw]
+    editingSale.serialNumbers.forEach((s) => {
+      if (!existingIds.has(s.id)) merged.push(s as any)
+    })
+    return merged
+  })()
+
+  // Prefill selected serials once when entering edit mode for a serial-tracked product
   useEffect(() => {
+    if (isEditMode && editingSale?.serialNumbers?.length) {
+      setSelectedSerialIds(editingSale.serialNumbers.map((s) => s.id))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Only reset serial selection when the user actively changes product/branch
+  // in edit mode — not on the initial mount (handled by the effect above).
+  const [hasUserChangedProduct, setHasUserChangedProduct] = useState(false)
+  useEffect(() => {
+    if (!hasUserChangedProduct) return
     setSelectedSerialIds([])
     setSerialError(null)
-  }, [selectedProductId, effectiveBranchId])
+  }, [selectedProductId, effectiveBranchId, hasUserChangedProduct])
 
   useEffect(() => {
     if (isSerialProduct) {
@@ -112,6 +169,7 @@ export function RecordSaleModal({ onClose }: Props) {
   }, [selectedSerialIds, isSerialProduct, setValue])
 
   const handleProductChange = (id: string) => {
+    setHasUserChangedProduct(true)
     setValue('productId', id)
     const prod = products.find((p) => p.id === id)
     if (prod) setValue('sellingPrice', prod.sellingPrice ?? 0)
@@ -131,7 +189,8 @@ export function RecordSaleModal({ onClose }: Props) {
       if (isSerialProduct && selectedSerialIds.length === 0) {
         throw new Error('Select at least one serial number')
       }
-      return salesService.create({
+
+      const payload = {
         productId: v.productId,
         branchId: effectiveBranchId || undefined,
         quantity: isSerialProduct ? selectedSerialIds.length : v.quantity,
@@ -141,10 +200,20 @@ export function RecordSaleModal({ onClose }: Props) {
         customerPhone: v.customerPhone || undefined,
         note: v.note || undefined,
         serialNumberIds: isSerialProduct ? selectedSerialIds : undefined,
-      })
+      }
+
+      return isEditMode
+        ? salesService.update(editingSale!.id, payload)
+        : salesService.create(payload)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sales'] })
+      qc.invalidateQueries({ queryKey: ['sales-summary'] })
+      qc.invalidateQueries({ queryKey: ['sales-monthly'] })
+      qc.invalidateQueries({ queryKey: ['sales-yearly'] })
+      qc.invalidateQueries({ queryKey: ['sales-breakdown'] })
+      qc.invalidateQueries({ queryKey: ['sales-list'] })
+      qc.invalidateQueries({ queryKey: ['serials-available'] })
       onClose()
     },
     onError: (err: any) => {
@@ -167,9 +236,11 @@ export function RecordSaleModal({ onClose }: Props) {
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-indigo-600 dark:bg-indigo-500 rounded-xl flex items-center justify-center shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40">
-              <ShoppingCart size={16} className="text-white" />
+              {isEditMode ? <Pencil size={16} className="text-white" /> : <ShoppingCart size={16} className="text-white" />}
             </div>
-            <DialogTitle className="text-lg font-bold text-gray-900 dark:text-gray-50">Record Sale</DialogTitle>
+            <DialogTitle className="text-lg font-bold text-gray-900 dark:text-gray-50">
+              {isEditMode ? 'Edit Sale' : 'Record Sale'}
+            </DialogTitle>
           </div>
         </DialogHeader>
 
@@ -208,7 +279,7 @@ export function RecordSaleModal({ onClose }: Props) {
             {isSuperAdmin && (
               <div className="space-y-2">
                 <FieldLabel required>Branch</FieldLabel>
-                <Select onValueChange={(val) => setValue('branchId', val)}>
+                <Select value={selectedBranchId || ''} onValueChange={(val) => setValue('branchId', val)}>
                   <SelectTrigger className="h-10 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm">
                     <SelectValue placeholder="Select branch…" />
                   </SelectTrigger>
@@ -338,7 +409,10 @@ export function RecordSaleModal({ onClose }: Props) {
             {/* Dealer */}
             <div className="space-y-2">
               <FieldLabel>Dealer</FieldLabel>
-              <Select onValueChange={(val) => setValue('dealerId', val === '__direct__' ? '' : val)} defaultValue="__direct__">
+              <Select
+                value={watch('dealerId') || '__direct__'}
+                onValueChange={(val) => setValue('dealerId', val === '__direct__' ? '' : val)}
+              >
                 <SelectTrigger className="h-10 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 text-sm">
                   <SelectValue placeholder="Direct sale (no dealer)" />
                 </SelectTrigger>
@@ -386,7 +460,7 @@ export function RecordSaleModal({ onClose }: Props) {
               className="h-10 px-6 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white gap-2 shadow-sm shadow-indigo-200 dark:shadow-indigo-900/40"
             >
               {mut.isPending && <Loader2 size={13} className="animate-spin" />}
-              Record Sale
+              {isEditMode ? 'Save Changes' : 'Record Sale'}
             </Button>
           </div>
         </form>

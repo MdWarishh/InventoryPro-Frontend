@@ -1,7 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Eye, Pencil, Trash2, Loader2, Building2 } from 'lucide-react'
+import { Pencil, Trash2, Loader2, Building2, MoreVertical, Download, Eye } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createRoot } from 'react-dom/client'
+import { getInvoiceById } from '@/services/invoice.service'
+import InvoiceDocument from './InvoiceDocument'
 
 // ── WhatsApp SVG Icon ─────────────────────────────────────────────────────────
 function WhatsAppIcon({ size = 14 }: { size?: number }) {
@@ -56,19 +60,26 @@ function itemsSummary(stockOuts: StockOutSummary[]): string {
   return `${stockOuts[0].product.name} +${stockOuts.length - 1} more (${total} qty)`
 }
 
-// ── WhatsApp Message Handler ──────────────────────────────────────────────────
+// Model Name field ke liye — sab products comma se join
+function modelNamesSummary(stockOuts: StockOutSummary[]): string {
+  if (!stockOuts?.length) return '—'
+  return stockOuts.map(so => so.product.name).join(', ')
+}
+
+// ── WhatsApp ──────────────────────────────────────────────────────────────────
 function openWhatsApp(inv: InvoiceRow) {
   if (!inv.customerPhone) return
-  // Clean phone number — remove spaces, dashes, etc.
   const raw = inv.customerPhone.replace(/\D/g, '')
-  // Add India country code if not present
   const phone = raw.startsWith('91') ? raw : `91${raw}`
-
   const amount = '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(inv.totalAmount)
+  const modelNames = modelNamesSummary(inv.stockOuts)
+
   const message = `Thank you for visiting Limra Speech & Hearing Care Clinic. Your invoice has been generated and attached as a PDF.
 
 💳 Payment Received: ${amount}
 📄 Invoice No: ${inv.invoiceNumber}
+👤 Name - ${inv.customerName}
+🎧 Model Name - ${modelNames}
 
 If you have any questions or need support, feel free to contact us.
 
@@ -81,9 +92,202 @@ If you have any questions or need support, feel free to contact us.
 Limra Speech & Hearing Care Clinic
 Providing Better Hearing, Better Living 💙`
 
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-  window.open(url, '_blank')
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank')
 }
+
+// ── PDF Download ──────────────────────────────────────────────────────────────
+async function downloadInvoicePDF(invoiceId: string, invoiceNumber: string) {
+  const invoice = await getInvoiceById(invoiceId)
+
+  const container = document.createElement('div')
+  container.style.cssText =
+    'position:fixed;left:-9999px;top:0;width:794px;background:white;z-index:-9999;visibility:hidden;'
+  document.body.appendChild(container)
+
+  const root = createRoot(container)
+
+  await new Promise<void>(resolve => {
+    root.render(<InvoiceDocument invoice={invoice} />)
+    setTimeout(resolve, 700)
+  })
+
+  const el = container.querySelector('#invoice-root') as HTMLElement | null
+  if (!el) {
+    root.unmount()
+    document.body.removeChild(container)
+    alert('PDF generation failed. Please try again.')
+    return
+  }
+
+  // footer negative margin fix for PDF capture
+  const footer = el.querySelector('#invoice-footer') as HTMLElement | null
+  if (footer) {
+    footer.style.marginLeft = '0'
+    footer.style.marginRight = '0'
+  }
+
+  const html2pdf = (await import('html2pdf.js')).default
+  await html2pdf()
+    .set({
+      margin: 0,
+      filename: `${invoiceNumber}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+    })
+    .from(el)
+    .save()
+
+  root.unmount()
+  document.body.removeChild(container)
+}
+
+// ── 3-dot Dropdown ────────────────────────────────────────────────────────────
+interface DropdownProps {
+  inv: InvoiceRow
+  onDelete: (id: string) => void
+  isDeleting: boolean
+  onView: () => void
+  onEdit: () => void
+}
+
+function ActionDropdown({ inv, onDelete, isDeleting, onView, onEdit }: DropdownProps) {
+  const [open,        setOpen]        = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const isDealerInv = !!inv.dealerId
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleDownload = useCallback(async () => {
+    setOpen(false)
+    setDownloading(true)
+    try {
+      await downloadInvoicePDF(inv.id, inv.invoiceNumber)
+    } catch (e) {
+      console.error(e)
+      alert('Download failed. Please try again.')
+    } finally {
+      setDownloading(false)
+    }
+  }, [inv.id, inv.invoiceNumber])
+
+  return (
+    <div ref={ref} className="relative flex items-center justify-end">
+      {downloading && (
+        <Loader2 size={14} className="animate-spin text-indigo-500 mr-1.5 shrink-0" />
+      )}
+
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(v => !v) }}
+        title="Actions"
+        className="p-1.5 rounded-lg text-gray-400
+          hover:text-gray-700 hover:bg-gray-100
+          dark:hover:text-gray-200 dark:hover:bg-gray-800
+          transition-colors"
+      >
+        <MoreVertical size={15} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-1 z-50 w-44
+            bg-white dark:bg-gray-900
+            border border-gray-200 dark:border-gray-700
+            rounded-xl shadow-lg overflow-hidden"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { setOpen(false); onView() }}
+            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm
+              text-gray-700 dark:text-gray-300
+              hover:bg-indigo-50 dark:hover:bg-indigo-900/20
+              hover:text-indigo-600 dark:hover:text-indigo-400
+              transition-colors"
+          >
+            <Eye size={13} className="shrink-0" />
+            View Invoice
+          </button>
+
+          {inv.customerPhone && (
+            <button
+              onClick={() => { setOpen(false); openWhatsApp(inv) }}
+              className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm
+                text-gray-700 dark:text-gray-300
+                hover:bg-green-50 dark:hover:bg-green-900/20
+                hover:text-green-600 dark:hover:text-green-400
+                transition-colors"
+            >
+              <WhatsAppIcon size={13} />
+              Send WhatsApp
+            </button>
+          )}
+
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm
+              text-gray-700 dark:text-gray-300
+              hover:bg-blue-50 dark:hover:bg-blue-900/20
+              hover:text-blue-600 dark:hover:text-blue-400
+              transition-colors disabled:opacity-50"
+          >
+            <Download size={13} className="shrink-0" />
+            {downloading ? 'Downloading...' : 'Download PDF'}
+          </button>
+
+          {!isDealerInv && (
+            <button
+              onClick={() => { setOpen(false); onEdit() }}
+              className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm
+                text-gray-700 dark:text-gray-300
+                hover:bg-amber-50 dark:hover:bg-amber-900/20
+                hover:text-amber-600 dark:hover:text-amber-400
+                transition-colors"
+            >
+              <Pencil size={13} className="shrink-0" />
+              Edit Invoice
+            </button>
+          )}
+
+          <div className="border-t border-gray-100 dark:border-gray-800 my-0.5" />
+
+          <button
+            onClick={() => { setOpen(false); onDelete(inv.id) }}
+            disabled={isDeleting}
+            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm
+              text-red-500 dark:text-red-400
+              hover:bg-red-50 dark:hover:bg-red-900/20
+              hover:text-red-600 dark:hover:text-red-500
+              transition-colors disabled:opacity-40"
+          >
+            {isDeleting
+              ? <Loader2 size={13} className="animate-spin shrink-0" />
+              : <Trash2 size={13} className="shrink-0" />
+            }
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Table ────────────────────────────────────────────────────────────────
 export default function InvoiceTable({
   invoices, onDelete, deletingId, currentPage, limit,
 }: Props) {
@@ -104,36 +308,18 @@ export default function InvoiceTable({
   return (
     <div className="w-full overflow-x-auto">
       <table className="w-full text-sm border-collapse">
-
-        {/* ── Head ─────────────────────────────────────────────────────────── */}
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-10">
-              #
-            </th>
-            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[110px]">
-              Date
-            </th>
-            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[140px]">
-              Invoice #
-            </th>
-            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-              Customer
-            </th>
-            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[190px]">
-              Items
-            </th>
-            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[100px]">
-              Payment
-            </th>
-            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[130px]">
-              Amount
-            </th>
-            <th className="px-4 py-3 w-[100px]" />
+            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-10">#</th>
+            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[110px]">Date</th>
+            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[140px]">Invoice #</th>
+            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">Customer</th>
+            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[190px]">Items</th>
+            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[100px]">Payment</th>
+            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 w-[130px]">Amount</th>
+            <th className="px-4 py-3 w-[52px]" />
           </tr>
         </thead>
-
-        {/* ── Body ─────────────────────────────────────────────────────────── */}
         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
           {invoices.map((inv, idx) => {
             const isDeleting  = deletingId === inv.id
@@ -148,17 +334,10 @@ export default function InvoiceTable({
                   hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10
                   cursor-pointer transition-colors"
               >
-                {/* Sr # */}
-                <td className="px-4 py-3.5 text-gray-400 dark:text-gray-600 text-xs">
-                  {srNo}
-                </td>
-
-                {/* Date */}
+                <td className="px-4 py-3.5 text-gray-400 dark:text-gray-600 text-xs">{srNo}</td>
                 <td className="px-4 py-3.5 whitespace-nowrap text-gray-600 dark:text-gray-400 text-xs">
                   {fmtDate(inv.date)}
                 </td>
-
-                {/* Invoice # + dealer badge */}
                 <td className="px-4 py-3.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold text-indigo-600 dark:text-indigo-400 font-mono text-[13px]">
@@ -172,8 +351,6 @@ export default function InvoiceTable({
                     )}
                   </div>
                 </td>
-
-                {/* Customer */}
                 <td className="px-4 py-3.5">
                   <div className="font-medium text-gray-900 dark:text-white truncate max-w-[170px]">
                     {inv.customerName || '—'}
@@ -182,8 +359,6 @@ export default function InvoiceTable({
                     <div className="text-xs text-gray-400 mt-0.5">{inv.customerPhone}</div>
                   )}
                 </td>
-
-                {/* Items summary */}
                 <td className="px-4 py-3.5">
                   <span
                     className="text-gray-500 dark:text-gray-400 text-xs truncate block max-w-[185px]"
@@ -192,16 +367,12 @@ export default function InvoiceTable({
                     {itemsSummary(inv.stockOuts)}
                   </span>
                 </td>
-
-                {/* Payment mode */}
                 <td className="px-4 py-3.5 whitespace-nowrap">
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium
                     bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                     {inv.paymentMode ?? 'Cash'}
                   </span>
                 </td>
-
-                {/* Amount */}
                 <td className="px-4 py-3.5 text-right whitespace-nowrap">
                   <span className="font-semibold text-gray-900 dark:text-white">
                     {fmtAmount(inv.totalAmount)}
@@ -212,71 +383,17 @@ export default function InvoiceTable({
                     </div>
                   )}
                 </td>
-
-                {/* Actions — stop propagation so row click doesn't fire */}
                 <td
-                  className="px-4 py-3.5"
+                  className="px-2 py-3.5"
                   onClick={e => e.stopPropagation()}
                 >
-                  <div className="flex items-center justify-end gap-0.5
-                    opacity-100">
-
-                    {/* View */}
-                    <button
-                      onClick={() => goToDetail(inv.id)}
-                      title="View"
-                      className="p-1.5 rounded-lg text-gray-400
-                        hover:text-indigo-600 hover:bg-indigo-50
-                        dark:hover:text-indigo-400 dark:hover:bg-indigo-900/30
-                        transition-colors"
-                    >
-                      <Eye size={14} />
-                    </button>
-
-                    {/* WhatsApp — only if phone number exists */}
-                    {inv.customerPhone && (
-                      <button
-                        onClick={() => openWhatsApp(inv)}
-                        title={`WhatsApp ${inv.customerPhone}`}
-                        className="p-1.5 rounded-lg text-gray-400
-                          hover:text-green-600 hover:bg-green-50
-                          dark:hover:text-green-400 dark:hover:bg-green-900/30
-                          transition-colors"
-                      >
-                        <WhatsAppIcon size={14} />
-                      </button>
-                    )}
-
-                    {/* Edit — dealer invoice edit nahi hoti */}
-                    {!isDealerInv && (
-                      <button
-                        onClick={() => goToEdit(inv.id)}
-                        title="Edit"
-                        className="p-1.5 rounded-lg text-gray-400
-                          hover:text-amber-600 hover:bg-amber-50
-                          dark:hover:text-amber-400 dark:hover:bg-amber-900/30
-                          transition-colors"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    )}
-
-                    {/* Delete */}
-                    <button
-                      onClick={() => onDelete(inv.id)}
-                      disabled={isDeleting}
-                      title={isDealerInv ? 'Delete from dealer section' : 'Delete'}
-                      className="p-1.5 rounded-lg text-gray-400
-                        hover:text-red-600 hover:bg-red-50
-                        dark:hover:text-red-400 dark:hover:bg-red-900/30
-                        transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {isDeleting
-                        ? <Loader2 size={14} className="animate-spin" />
-                        : <Trash2 size={14} />
-                      }
-                    </button>
-                  </div>
+                  <ActionDropdown
+                    inv={inv}
+                    onDelete={onDelete}
+                    isDeleting={isDeleting}
+                    onView={() => goToDetail(inv.id)}
+                    onEdit={() => goToEdit(inv.id)}
+                  />
                 </td>
               </tr>
             )

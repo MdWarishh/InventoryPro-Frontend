@@ -8,7 +8,8 @@ import {
 } from 'lucide-react'
 import { salesService } from '@/services/sales.service'
 import { SalesTable } from './_components/SalesTable'
-import { RecordSaleModal } from './_components/RecordSaleModal'
+import { RecordSaleModal, type EditableSale } from './_components/RecordSaleModal'
+import { DeleteSaleDialog } from './_components/DeleteSaleDialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -114,6 +115,10 @@ export default function SalesPage() {
   const [downloading, setDownloading] = useState(false)
   const [treemapView, setTreemapView] = useState<'products' | 'branches'>('products')
 
+  // ── Edit / Delete state ─────────────────────────────────────────────────────
+  const [editingSale, setEditingSale] = useState<EditableSale | null>(null)
+  const [deletingSale, setDeletingSale] = useState<{ id: string; productName: string; quantity: number } | null>(null)
+
   // ── Branch Filter ──────────────────────────────────────────────────────────
   const { branchId, queryKey: branchQueryKey } = useBranchFilter()
 
@@ -195,6 +200,30 @@ export default function SalesPage() {
       })
     } catch (e) { console.error(e) }
     finally { setDownloading(false) }
+  }
+
+  // ── Edit / Delete handlers ─────────────────────────────────────────────────
+  const handleEdit = (sale: any) => {
+    setEditingSale({
+      id: sale.id,
+      productId: sale.productId,
+      branchId: sale.branchId,
+      quantity: sale.quantity,
+      sellingPrice: sale.sellingPrice,
+      dealerId: sale.dealerId,
+      customerName: sale.customerName,
+      customerPhone: sale.customerPhone,
+      notes: sale.notes,
+      serialNumbers: sale.serialNumbers,
+    })
+  }
+
+  const handleDeleteClick = (sale: any) => {
+    setDeletingSale({
+      id: sale.id,
+      productName: sale.product?.name ?? 'this item',
+      quantity: sale.quantity,
+    })
   }
 
   return (
@@ -302,7 +331,7 @@ export default function SalesPage() {
                       tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                       axisLine={false} tickLine={false} width={55}
                     />
-                    <Tooltip content={<BarTooltip />} cursor={{ fill: 'var(--muted)', radius: 4 }} />
+                    <Tooltip content={<BarTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.08)', radius: 4 }} />
                     <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
                       {monthly.map((entry, i) => (
                         <Cell
@@ -342,7 +371,7 @@ export default function SalesPage() {
                       tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                       axisLine={false} tickLine={false} width={55}
                     />
-                    <Tooltip content={<BarTooltip />} cursor={{ fill: 'var(--muted)', radius: 4 }} />
+                 <Tooltip content={<BarTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.08)', radius: 4 }} />
                     <Bar dataKey="revenue" fill="#22c55e" radius={[6, 6, 0, 0]} opacity={0.85} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -352,65 +381,81 @@ export default function SalesPage() {
         </div>
 
         {/* ── Treemap ── */}
-        <Card className="border-border shadow-sm bg-card">
-          <CardHeader className="pb-2 px-5 pt-5">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <CardTitle className="text-sm font-semibold text-foreground">
-                Revenue Breakdown — {treemapView === 'products' ? 'Top Products' : 'By Branch'}
-              </CardTitle>
-              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                <button
-                  onClick={() => setTreemapView('products')}
-                  className={`text-xs px-3 py-1 rounded-md font-medium transition-all ${
-                    treemapView === 'products'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Products
-                </button>
-                <button
-                  onClick={() => setTreemapView('branches')}
-                  className={`text-xs px-3 py-1 rounded-md font-medium transition-all ${
-                    treemapView === 'branches'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Branches
-                </button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-5">
-            {breakdownLoading ? (
-              <Skeleton className="h-[200px] w-full rounded-xl" />
-            ) : treemapItems.length === 0 ? (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                No data available
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <Treemap
-                  data={treemapItems.map((item, i) => ({ ...item, value: item.revenue, index: i }))}
-                  dataKey="value"
-                  content={<TreemapContent />}
-                />
-              </ResponsiveContainer>
-            )}
-            {/* Legend */}
-            {!breakdownLoading && treemapItems.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {treemapItems.slice(0, 6).map((item, i) => (
-                  <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: TREEMAP_COLORS[i % TREEMAP_COLORS.length] }} />
-                    <span className="truncate max-w-[100px]">{item.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+       {/* ── Top Products / Branches Breakdown ── */}
+<Card className="border-border shadow-sm bg-card">
+  <CardHeader className="pb-2 px-5 pt-5">
+    <div className="flex items-center justify-between flex-wrap gap-2">
+      <CardTitle className="text-sm font-semibold text-foreground">
+        Revenue Breakdown — {treemapView === 'products' ? 'Top Products' : 'By Branch'}
+      </CardTitle>
+      <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+        <button
+          onClick={() => setTreemapView('products')}
+          className={`text-xs px-3 py-1 rounded-md font-medium transition-all ${
+            treemapView === 'products'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Products
+        </button>
+        <button
+          onClick={() => setTreemapView('branches')}
+          className={`text-xs px-3 py-1 rounded-md font-medium transition-all ${
+            treemapView === 'branches'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Branches
+        </button>
+      </div>
+    </div>
+  </CardHeader>
+  <CardContent className="px-4 pb-5">
+    {breakdownLoading ? (
+      <Skeleton className="h-[220px] w-full rounded-xl" />
+    ) : treemapItems.length === 0 ? (
+      <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+        No data available
+      </div>
+    ) : (
+      <ResponsiveContainer width="100%" height={Math.max(200, treemapItems.length * 38)}>
+        <BarChart
+          data={treemapItems}
+          layout="vertical"
+          margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
+        >
+          <XAxis type="number" tickFormatter={fmtK} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={110}
+            tick={{ fontSize: 11, fill: 'var(--foreground)', fontWeight: 500 }}
+            axisLine={false} tickLine={false}
+          />
+          <Tooltip content={<BarTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} />
+          <Bar dataKey="revenue" radius={[0, 6, 6, 0]} maxBarSize={28}>
+            {treemapItems.map((_, i) => (
+              <Cell key={i} fill={TREEMAP_COLORS[i % TREEMAP_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    )}
+    {/* Legend */}
+    {!breakdownLoading && treemapItems.length > 0 && (
+      <div className="flex flex-wrap gap-2 mt-3">
+        {treemapItems.slice(0, 6).map((item, i) => (
+          <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: TREEMAP_COLORS[i % TREEMAP_COLORS.length] }} />
+            <span className="truncate max-w-[100px]">{item.name}</span>
+          </div>
+        ))}
+      </div>
+    )}
+  </CardContent>
+</Card>
 
         {/* ── Filters ── */}
         <Card className="border-border shadow-sm bg-card">
@@ -468,12 +513,28 @@ export default function SalesPage() {
             total={pagination?.total ?? 0}
             limit={LIMIT}
             onPageChange={setPage}
+            onEdit={handleEdit}
+            onDelete={handleDeleteClick}
           />
         </div>
 
       </div>
 
       {showModal && <RecordSaleModal onClose={() => setShowModal(false)} />}
+
+      {editingSale && (
+        <RecordSaleModal
+          editingSale={editingSale}
+          onClose={() => setEditingSale(null)}
+        />
+      )}
+
+      {deletingSale && (
+        <DeleteSaleDialog
+          sale={deletingSale}
+          onClose={() => setDeletingSale(null)}
+        />
+      )}
     </div>
   )
 }

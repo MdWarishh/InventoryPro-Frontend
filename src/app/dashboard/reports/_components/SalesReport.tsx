@@ -99,39 +99,39 @@ export default function SalesReportView({ isSuperAdmin, branches,globalBranchId 
             )}
           </div>
 
-          {/* Bar Chart */}
-          {data.chart.length > 0 && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Revenue Trend</h3>
-              <div className="flex items-end gap-1 h-48 overflow-x-auto pb-2">
-                {data.chart.map(point => (
-                  <div key={point.date} className="group flex flex-col items-center gap-1 flex-1 min-w-[32px]">
-                    {/* Tooltip */}
-                    <div className="hidden group-hover:flex flex-col items-center pointer-events-none mb-1">
-                      <div className="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-2.5 py-1.5 whitespace-nowrap">
-                        <p className="font-semibold">{fmt(point.revenue)}</p>
-                        <p className="text-gray-400 dark:text-gray-300">{point.count} sales</p>
-                      </div>
-                      <div className="w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-900 dark:border-t-gray-700" />
-                    </div>
-                    {/* Bar */}
-                    <div className="w-full flex items-end" style={{ height: '160px' }}>
-                      <div
-                        className="w-full bg-blue-500 dark:bg-blue-600 group-hover:bg-blue-600 dark:group-hover:bg-blue-500 transition-colors rounded-t-sm"
-                        style={{ height: `${Math.max((point.revenue / maxChart) * 100, 2)}%` }}
-                      />
-                    </div>
-                    {/* Label */}
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate w-full text-center">
-                      {filters.groupBy === 'month'
-                        ? point.date.slice(0, 7)
-                        : new Date(point.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
+        {/* Bar Chart */}
+{data.chart.length > 0 && (
+  <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Revenue Trend</h3>
+    <div className="flex items-end gap-1 h-56 overflow-x-auto overflow-y-visible pb-2 pt-8">
+      {data.chart.map(point => (
+        <div key={point.date} className="group relative flex flex-col items-center gap-1 flex-1 min-w-[32px]">
+          {/* Tooltip */}
+          <div className="hidden group-hover:flex flex-col items-center pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full z-20">
+            <div className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded-lg px-2.5 py-1.5 whitespace-nowrap shadow-lg">
+              <p className="font-semibold">{fmt(point.revenue)}</p>
+              <p className="text-gray-300 dark:text-gray-600">{point.count} sales</p>
             </div>
-          )}
+            <div className="w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-900 dark:border-t-gray-100" />
+          </div>
+          {/* Bar */}
+          <div className="w-full flex items-end" style={{ height: '160px' }}>
+            <div
+              className="w-full bg-indigo-500 dark:bg-indigo-400 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-300 transition-colors rounded-t-sm"
+              style={{ height: `${Math.max((point.revenue / maxChart) * 100, 2)}%` }}
+            />
+          </div>
+          {/* Label */}
+          <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate w-full text-center">
+            {filters.groupBy === 'month'
+              ? point.date.slice(0, 7)
+              : new Date(point.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
           {/* Top Products */}
           {data.items.length > 0 && (() => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Eye } from 'lucide-react'
+import { Eye, Pencil } from 'lucide-react'
 import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow,
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { attendanceService } from '@/services/attendance.service'
 import { StatusBadge } from './StatusBadge'
+import { useAuth } from '@/hooks/useAuth'
 import type { AttendanceWithUser, GetAllAttendanceParams } from '@/types/attendance.types'
 
 const fmt = (iso: string | null) =>
@@ -28,11 +29,13 @@ const fmtHours = (h: number | null) => {
 interface Props {
   filters: GetAllAttendanceParams
   onViewUser: (userId: string, userName: string) => void
+  onEditRecord?: (record: AttendanceWithUser) => void  // sirf super admin ke liye
 }
 
-export function AttendanceTable({ filters, onViewUser }: Props) {
+export function AttendanceTable({ filters, onViewUser, onEditRecord }: Props) {
   const [records, setRecords] = useState<AttendanceWithUser[]>([])
   const [loading, setLoading] = useState(true)
+  const { isSuperAdmin } = useAuth()
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -75,7 +78,8 @@ export function AttendanceTable({ filters, onViewUser }: Props) {
             <TableHead>Check Out</TableHead>
             <TableHead>Hours</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-10" />
+            {/* Super admin ke liye extra column */}
+            <TableHead className={isSuperAdmin ? 'w-20' : 'w-10'} />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -88,14 +92,29 @@ export function AttendanceTable({ filters, onViewUser }: Props) {
               <TableCell>{fmtHours(r.totalHours)}</TableCell>
               <TableCell><StatusBadge status={r.status} /></TableCell>
               <TableCell>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => onViewUser(r.user.id, r.user.name)}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {/* Edit button — sirf super admin dikhega */}
+                  {isSuperAdmin && onEditRecord && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={() => onEditRecord(r)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+
+                  {/* View button — sabko dikhega */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => onViewUser(r.user.id, r.user.name)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

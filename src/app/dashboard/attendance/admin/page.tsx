@@ -10,9 +10,11 @@ import { UserCalendarSheet } from '../_components/UserCalendarSheet'
 import { AdminStatsCards } from './_components/AdminStatsCards'
 import { AdminFiltersBar } from './_components/AdminFiltersBar'
 import { AttendanceSettingsSheet } from './_components/AttendanceSettingsSheet'
+import { AdminEditAttendanceSheet } from './_components/AdminEditAttendanceSheet'
 import { useAttendanceStats } from '@/hooks/useAttendanceStats'
 import { useBranchFilter } from '@/hooks/useBranchFilter'
 import { useBranchStore } from '@/store/branch.store'
+import type { AttendanceWithUser } from '@/types/attendance.types'
 
 const now = new Date()
 
@@ -21,13 +23,13 @@ export default function AdminAttendancePage() {
   const [year, setYear] = useState(now.getFullYear())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [calendarUser, setCalendarUser] = useState<{ id: string; name: string } | null>(null)
+  const [editRecord, setEditRecord] = useState<AttendanceWithUser | null>(null)  // ← NEW
   const [autoAbsentLoading, setAutoAbsentLoading] = useState(false)
   const [tableKey, setTableKey] = useState(0)
 
   const { branchId: globalBranchId } = useBranchFilter()
   const branches = useBranchStore((s) => s.branches)
 
-  // Branch change pe table force refetch
   useEffect(() => {
     setTableKey((k) => k + 1)
   }, [globalBranchId])
@@ -54,6 +56,12 @@ export default function AdminAttendancePage() {
   }
 
   const handleSettingsSaved = () => {
+    setTableKey((k) => k + 1)
+    refetchStats()
+  }
+
+  // Edit save hone ke baad table + stats refresh karo
+  const handleEditSaved = () => {
     setTableKey((k) => k + 1)
     refetchStats()
   }
@@ -116,10 +124,16 @@ export default function AdminAttendancePage() {
           }}
         />
 
+        {/*
+          AttendanceTable ko onEditRecord prop pass karo.
+          Table mein har row pe edit button dikhao (pencil icon).
+          Wo button click hone pe yahan setEditRecord call hoga.
+        */}
         <AttendanceTable
           key={tableKey}
           filters={filters}
           onViewUser={(id, name) => setCalendarUser({ id, name })}
+          onEditRecord={(record) => setEditRecord(record)}  // ← NEW prop
         />
       </div>
 
@@ -136,6 +150,14 @@ export default function AdminAttendancePage() {
         userName={calendarUser?.name ?? ''}
         open={!!calendarUser}
         onClose={() => setCalendarUser(null)}
+      />
+
+      {/* NEW: Edit attendance sheet — sirf super admin ke liye */}
+      <AdminEditAttendanceSheet
+        record={editRecord}
+        open={!!editRecord}
+        onClose={() => setEditRecord(null)}
+        onSaved={handleEditSaved}
       />
     </div>
   )

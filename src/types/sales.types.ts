@@ -16,6 +16,11 @@ export interface SaleDealer {
   name: string
 }
 
+export interface SaleSerialNumber {
+  id: string
+  serialNumber: string
+}
+
 export interface StockOut {
   id: string
   productId: string
@@ -31,6 +36,7 @@ export interface StockOut {
   branch: SaleBranch
   dealer: SaleDealer | null
   invoice: { invoiceNumber: string } | null
+  serialNumbers?: SaleSerialNumber[]
 }
 
 export interface SalesSummary {
@@ -47,6 +53,18 @@ export interface StockOutsResponse {
 }
 
 export interface CreateStockOutPayload {
+  productId: string
+  branchId?: string
+  quantity: number
+  sellingPrice: number
+  dealerId?: string | null
+  customerName?: string
+  customerPhone?: string
+  note?: string
+  serialNumberIds?: string[]
+}
+
+export interface UpdateStockOutPayload {
   productId: string
   branchId?: string
   quantity: number

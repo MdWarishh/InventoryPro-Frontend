@@ -17,6 +17,7 @@ const STATUS_COLORS: Record<AttendanceStatus, string> = {
   PRESENT: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
   HALF_DAY: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
   ABSENT: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-200 dark:border-red-800',
+  LEAVE: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-200 dark:border-blue-800',
 }
 
 const MONTH_NAMES = [
@@ -140,12 +141,12 @@ export function UserCalendarSheet({ userId, userName, open, onClose }: Props) {
             </div>
             {/* Legend */}
             <div className="flex gap-3 mt-4 flex-wrap">
-              {(['PRESENT', 'HALF_DAY', 'ABSENT'] as AttendanceStatus[]).map((s) => (
-                <div key={s} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className={`h-3 w-3 rounded-sm border ${STATUS_COLORS[s]}`} />
-                  {s === 'PRESENT' ? 'Present' : s === 'HALF_DAY' ? 'Half Day' : 'Absent'}
-                </div>
-              ))}
+              {(['PRESENT', 'HALF_DAY', 'ABSENT', 'LEAVE'] as AttendanceStatus[]).map((s) => (
+  <div key={s} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span className={`h-3 w-3 rounded-sm border ${STATUS_COLORS[s]}`} />
+    {s === 'PRESENT' ? 'Present' : s === 'HALF_DAY' ? 'Half Day' : s === 'ABSENT' ? 'Absent' : 'Leave'}
+  </div>
+))}
             </div>
           </>
         )}

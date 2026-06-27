@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Package, TrendingUp, AlertCircle, Plus, RefreshCw, BarChart3, Boxes, Undo2 } from 'lucide-react'
+import { Package, TrendingUp, AlertCircle, Plus, RefreshCw, BarChart3, Boxes, Undo2, History } from 'lucide-react'
 import { dealersService } from '@/services/dealers.service'
 import type {
   StockSummaryItem,
@@ -11,6 +11,7 @@ import type {
 import GiveStockModal from './GiveStockModal'
 import RecordSaleModal from './RecordSaleModal'
 import SalesReturnModal, { type CreateSalesReturnPayload } from './SalesReturnModal'
+import AddHistoricalStockModal, { type AddHistoricalStockPayload } from './AddHistoricalStockModal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -51,6 +52,8 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
   const [giveOpen, setGiveOpen] = useState(false)
   const [saleOpen, setSaleOpen] = useState(false)
   const [returnOpen, setReturnOpen] = useState(false)
+  const [historicalOpen, setHistoricalOpen] = useState(false)
+  const [historicalLoading, setHistoricalLoading] = useState(false)
   const [invoiceCount, setInvoiceCount] = useState(0)
 
   const load = useCallback(async () => {
@@ -90,13 +93,24 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
     load()
   }
 
-  const totalGiven = summary.reduce((s, i) => s + i.given, 0)
-  const totalSold = summary.reduce((s, i) => s + i.sold, 0)
+  const handleHistoricalStock = async (data: AddHistoricalStockPayload) => {
+    setHistoricalLoading(true)
+    try {
+      await dealersService.addHistoricalStock(dealerId, data)
+      setHistoricalOpen(false)
+      load()
+    } finally {
+      setHistoricalLoading(false)
+    }
+  }
+
+  const totalGiven   = summary.reduce((s, i) => s + (i.given ?? 0) + (i.historicalIn ?? 0), 0)
+  const totalSold    = summary.reduce((s, i) => s + (i.sold ?? 0) + (i.historicalOut ?? 0), 0)
   const totalBalance = summary.reduce((s, i) => s + i.balance, 0)
 
   const pieData = [
-    { name: 'Sold', value: totalSold, color: 'hsl(142 71% 45%)' },
-    { name: 'With Dealer', value: totalBalance, color: 'hsl(221 83% 53%)' },
+    { name: 'Sold',        value: totalSold,    color: 'hsl(142 71% 45%)' },
+    { name: 'With Dealer', value: totalBalance,  color: 'hsl(221 83% 53%)' },
   ].filter((d) => d.value > 0)
 
   if (loading) {
@@ -130,6 +144,7 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
         {/* ── Action Bar ── */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Primary actions */}
             <Button size="sm" onClick={() => setGiveOpen(true)} className="gap-1.5">
               <Package className="w-3.5 h-3.5" />
               Give Stock
@@ -154,7 +169,28 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
               <Undo2 className="w-3.5 h-3.5" />
               Sales Return
             </Button>
+
+            {/* Divider */}
+            <div className="w-px h-5 bg-border" />
+
+            {/* Historical — secondary, visually separated */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setHistoricalOpen(true)}
+              className="gap-1.5 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+            >
+              <History className="w-3.5 h-3.5" />
+              Add Stock
+              <Badge
+                variant="outline"
+                className="ml-0.5 text-[9px] px-1 py-0 h-3.5 border-indigo-300 text-indigo-500 dark:border-indigo-700 leading-none"
+              >
+                Historical
+              </Badge>
+            </Button>
           </div>
+
           <Button
             variant="ghost" size="icon"
             onClick={load}
@@ -172,12 +208,23 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
               </div>
               <p className="font-semibold text-foreground">No stock assigned yet</p>
               <p className="text-sm text-muted-foreground max-w-xs">
-                Click "Give Stock" to assign products to this dealer from your branch inventory
+                Give stock from your branch inventory, or add a historical entry for older records
               </p>
-              <Button size="sm" className="mt-2 gap-1.5" onClick={() => setGiveOpen(true)}>
-                <Plus className="w-3.5 h-3.5" />
-                Give First Stock
-              </Button>
+              <div className="flex items-center gap-2 mt-2 flex-wrap justify-center">
+                <Button size="sm" className="gap-1.5" onClick={() => setGiveOpen(true)}>
+                  <Plus className="w-3.5 h-3.5" />
+                  Give First Stock
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                  onClick={() => setHistoricalOpen(true)}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  Add Historical
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -289,10 +336,12 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {summary.map(({ product, given, sold, balance }) => {
-                          const pct = given > 0 ? Math.round((sold / given) * 100) : 0
+                        {summary.map(({ product, given, sold, balance, historicalIn, historicalOut, isHistoricalOnly }) => {
+                          const totalGivenRow = (given ?? 0) + (historicalIn ?? 0)
+                          const totalSoldRow  = (sold ?? 0)  + (historicalOut ?? 0)
+                          const pct = totalGivenRow > 0 ? Math.round((totalSoldRow / totalGivenRow) * 100) : 0
                           return (
-                            <TableRow key={product.id} className="hover:bg-muted/30">
+                            <TableRow key={product.id ?? product.name} className="hover:bg-muted/30">
                               <TableCell>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-semibold text-sm text-foreground">{product.name}</span>
@@ -301,13 +350,21 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
                                       {product.sku}
                                     </Badge>
                                   )}
+                                  {isHistoricalOnly && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] px-1.5 py-0 h-4 border-indigo-300 text-indigo-500 dark:border-indigo-700"
+                                    >
+                                      historical
+                                    </Badge>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-sm text-blue-600 dark:text-blue-400 font-medium">
-                                {given}
+                                {totalGivenRow}
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                                {sold}
+                                {totalSoldRow}
                               </TableCell>
                               <TableCell className="text-right">
                                 <Badge
@@ -363,6 +420,13 @@ export default function StockSummaryTab({ dealerId, dealerName }: Props) {
         dealerName={dealerName}
         dealerId={dealerId}
         stockSummary={summary}
+      />
+      <AddHistoricalStockModal
+        open={historicalOpen}
+        onClose={() => setHistoricalOpen(false)}
+        onSubmit={handleHistoricalStock}
+        dealerName={dealerName}
+        loading={historicalLoading}
       />
     </>
   )

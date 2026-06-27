@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ShoppingCart, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -8,15 +8,22 @@ import { cn } from '@/lib/utils'
 // Inline type — only fields SalesTable actually uses
 interface SaleItem {
   id: string
+  productId: string
+  branchId?: string
   quantity: number
   sellingPrice?: number
   date: string
+  dealerId?: string | null
+  customerName?: string | null
+  customerPhone?: string | null
+  notes?: string | null
   product: {
     name: string
     sku: string
     category?: { name: string; color?: string } | null
   }
   dealer?: { name: string } | null
+  serialNumbers?: { id: string; serialNumber: string }[]
 }
 
 const fmt = (n: number) =>
@@ -31,16 +38,54 @@ const fmtDate = (d: string) =>
 // ─── Table Header ─────────────────────────────────────────────────────────────
 function TableHeader() {
   return (
-    <div className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40">
-      {['Product', 'Qty', 'Price', 'Total', 'Dealer', 'Date'].map((col) => (
+    <div className="hidden md:grid md:grid-cols-[2.6fr_1fr_1.1fr_1.1fr_1.3fr_1.3fr_0.9fr] gap-4 px-6 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40">
+      {['Product', 'Qty', 'Price', 'Total', 'Dealer', 'Date', 'Actions'].map((col) => (
         <span key={col} className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{col}</span>
       ))}
     </div>
   )
 }
 
+// ─── Action Buttons (shared desktop + mobile) ─────────────────────────────────
+function ActionButtons({
+  onEdit, onDelete, compact,
+}: { onEdit: () => void; onDelete: () => void; compact?: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={onEdit}
+        title="Edit sale"
+        className={cn(
+          'flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors',
+          compact ? 'w-8 h-8' : 'w-8 h-8'
+        )}
+      >
+        <Pencil size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        title="Delete sale"
+        className={cn(
+          'flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:border-red-300 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors',
+          compact ? 'w-8 h-8' : 'w-8 h-8'
+        )}
+      >
+        <Trash2 size={13} />
+      </button>
+    </div>
+  )
+}
+
 // ─── Sale Row ─────────────────────────────────────────────────────────────────
-function SaleRow({ sale }: { sale: SaleItem }) {
+function SaleRow({
+  sale, onEdit, onDelete,
+}: {
+  sale: SaleItem
+  onEdit: (sale: SaleItem) => void
+  onDelete: (sale: SaleItem) => void
+}) {
   const catColor = sale.product.category?.color || '#6366f1'
   const sellingPrice = sale.sellingPrice ?? 0
   const total = sellingPrice * sale.quantity
@@ -48,7 +93,7 @@ function SaleRow({ sale }: { sale: SaleItem }) {
   return (
     <>
       {/* Desktop Row */}
-      <div className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-3.5 items-center border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors group">
+      <div className="hidden md:grid md:grid-cols-[2.6fr_1fr_1.1fr_1.1fr_1.3fr_1.3fr_0.9fr] gap-4 px-6 py-3.5 items-center border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors group">
 
         {/* Product */}
         <div className="min-w-0">
@@ -94,6 +139,9 @@ function SaleRow({ sale }: { sale: SaleItem }) {
 
         {/* Date */}
         <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">{fmtDate(sale.date)}</span>
+
+        {/* Actions */}
+        <ActionButtons onEdit={() => onEdit(sale)} onDelete={() => onDelete(sale)} />
       </div>
 
       {/* Mobile Card */}
@@ -119,7 +167,7 @@ function SaleRow({ sale }: { sale: SaleItem }) {
           </div>
         </div>
         <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-800">
-          <div>
+          <div className="flex items-center gap-2">
             {sale.dealer?.name ? (
               <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">{sale.dealer.name}</span>
             ) : (
@@ -127,8 +175,9 @@ function SaleRow({ sale }: { sale: SaleItem }) {
                 Direct Sale
               </Badge>
             )}
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{fmtDate(sale.date)}</span>
           </div>
-          <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{fmtDate(sale.date)}</span>
+          <ActionButtons compact onEdit={() => onEdit(sale)} onDelete={() => onDelete(sale)} />
         </div>
       </div>
     </>
@@ -140,7 +189,7 @@ function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="hidden md:grid md:grid-cols-[3fr_1fr_1.2fr_1.2fr_1.5fr_1.5fr] gap-4 px-6 py-4 items-center border-b border-gray-100 dark:border-gray-800">
+        <div key={i} className="hidden md:grid md:grid-cols-[2.6fr_1fr_1.1fr_1.1fr_1.3fr_1.3fr_0.9fr] gap-4 px-6 py-4 items-center border-b border-gray-100 dark:border-gray-800">
           <div className="space-y-2">
             <Skeleton className="w-40 h-3.5 rounded dark:bg-gray-800" />
             <Skeleton className="w-24 h-2.5 rounded dark:bg-gray-800" />
@@ -148,6 +197,7 @@ function SkeletonRows() {
           {[0, 1, 2, 3, 4].map((j) => (
             <Skeleton key={j} className="w-16 h-3 rounded dark:bg-gray-800" />
           ))}
+          <Skeleton className="w-16 h-7 rounded dark:bg-gray-800" />
         </div>
       ))}
       {Array.from({ length: 5 }).map((_, i) => (
@@ -164,7 +214,7 @@ function SkeletonRows() {
           </div>
           <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-800 flex justify-between">
             <Skeleton className="w-16 h-2.5 rounded dark:bg-gray-800" />
-            <Skeleton className="w-24 h-2.5 rounded dark:bg-gray-800" />
+            <Skeleton className="w-16 h-7 rounded dark:bg-gray-800" />
           </div>
         </div>
       ))}
@@ -251,9 +301,13 @@ interface SalesTableProps {
   isLoading: boolean
   page: number; totalPages: number; total: number; limit: number
   onPageChange: (p: number) => void
+  onEdit: (sale: SaleItem) => void
+  onDelete: (sale: SaleItem) => void
 }
 
-export function SalesTable({ sales, isLoading, page, totalPages, total, limit, onPageChange }: SalesTableProps) {
+export function SalesTable({
+  sales, isLoading, page, totalPages, total, limit, onPageChange, onEdit, onDelete,
+}: SalesTableProps) {
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
       <TableHeader />
@@ -271,7 +325,9 @@ export function SalesTable({ sales, isLoading, page, totalPages, total, limit, o
         </div>
       ) : (
         <>
-          {sales.map((sale) => <SaleRow key={sale.id} sale={sale} />)}
+          {sales.map((sale) => (
+            <SaleRow key={sale.id} sale={sale} onEdit={onEdit} onDelete={onDelete} />
+          ))}
           <Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPageChange={onPageChange} />
         </>
       )}

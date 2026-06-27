@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
-  Plus, Search, Users, TrendingUp, Package,
-  FileText, RefreshCw, Building2,
+  Plus, Search, TrendingUp, Package,
+  RefreshCw, Building2, IndianRupee, AlertTriangle, Wallet,
 } from 'lucide-react'
 import { dealersService } from '@/services/dealers.service'
 import type { Dealer, CreateDealerPayload } from '@/types/dealers.types'
@@ -16,6 +17,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { useBranchFilter } from '@/hooks/useBranchFilter'
 import { useBranchStore } from '@/store/branch.store'
+
+const fmtFull = (n: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
 export default function DealersPage() {
   const [dealers, setDealers] = useState<Dealer[]>([])
@@ -34,6 +38,14 @@ export default function DealersPage() {
   const { branchId: globalBranchId } = useBranchFilter()
   const branches = useBranchStore((s) => s.branches)
 
+  // ── Overview Stats (naya) ───────────────────────────────────────────────
+  const { data: overviewStats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+    queryKey: ['dealers-overview-stats', globalBranchId],
+    queryFn: () => dealersService.getOverviewStats(globalBranchId || undefined),
+    staleTime: 2 * 60 * 1000,
+  })
+  const stats = overviewStats?.data
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350)
     return () => clearTimeout(t)
@@ -44,7 +56,7 @@ export default function DealersPage() {
     try {
       const res = await dealersService.getAll({
         search: debouncedSearch || undefined,
-        branchId: globalBranchId || undefined,  
+        branchId: globalBranchId || undefined,
       })
       setDealers(res.data ?? [])
       setTotal(res.pagination.total)
@@ -53,11 +65,10 @@ export default function DealersPage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, globalBranchId])  // ← add globalBranchId
+  }, [debouncedSearch, globalBranchId])
 
   useEffect(() => { load() }, [load])
 
-  // Branch change pe search reset
   useEffect(() => {
     setSearch('')
   }, [globalBranchId])
@@ -82,9 +93,7 @@ export default function DealersPage() {
     finally { setDeleteLoading(false) }
   }
 
-  const totalStockIn  = dealers.reduce((s, d) => s + (d._count?.stockIns  || 0), 0)
-  const totalStockOut = dealers.reduce((s, d) => s + (d._count?.stockOuts || 0), 0)
-  const totalInvoices = dealers.reduce((s, d) => s + (d._count?.invoices  || 0), 0)
+  const handleRefresh = () => { load(); refetchStats() }
 
   return (
     <>
@@ -124,27 +133,61 @@ export default function DealersPage() {
           </div>
         )}
 
-        {/* Stats Bar */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-border">
-              {[
-                { icon: Users,      label: 'Active Dealers', value: total,         color: 'text-primary' },
-                { icon: Package,    label: 'Total Stock In', value: totalStockIn,  color: 'text-blue-600 dark:text-blue-400' },
-                { icon: TrendingUp, label: 'Total Sales',    value: totalStockOut, color: 'text-emerald-600 dark:text-emerald-400' },
-                { icon: FileText,   label: 'Invoices',       value: totalInvoices, color: 'text-violet-600 dark:text-violet-400' },
-              ].map(({ icon: Icon, label, value, color }) => (
-                <div key={label} className="flex items-center gap-3 px-5 py-4">
-                  <Icon className={`w-4 h-4 shrink-0 ${color}`} />
-                  <div>
-                    <p className={`text-xl font-bold tabular-nums leading-none ${color}`}>{value}</p>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider mt-0.5">{label}</p>
+        {/* ── Overview Stats — 5 widgets ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          {[
+            {
+              label: 'Total Wholesale Revenue',
+              value: fmtFull(stats?.totalWholesaleRevenue ?? 0),
+              icon: IndianRupee,
+              iconBg: 'bg-indigo-100 dark:bg-indigo-950/40',
+              color: 'text-indigo-600 dark:text-indigo-400',
+            },
+            {
+              label: 'Total Sale',
+              value: fmtFull(stats?.totalSale ?? 0),
+              icon: TrendingUp,
+              iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
+              color: 'text-emerald-600 dark:text-emerald-400',
+            },
+            {
+              label: 'All Profit',
+              value: fmtFull(stats?.allProfit ?? 0),
+              icon: Wallet,
+              iconBg: (stats?.allProfit ?? 0) >= 0 ? 'bg-sky-100 dark:bg-sky-950/40' : 'bg-destructive/10',
+              color: (stats?.allProfit ?? 0) >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-destructive',
+            },
+            {
+              label: 'Products in Hand',
+              value: (stats?.productsInHand ?? 0).toLocaleString('en-IN'),
+              icon: Package,
+              iconBg: 'bg-violet-100 dark:bg-violet-950/40',
+              color: 'text-violet-600 dark:text-violet-400',
+            },
+            {
+              label: 'Low Stock Items',
+              value: (stats?.lowStockItems ?? 0).toLocaleString('en-IN'),
+              icon: AlertTriangle,
+              iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+              color: 'text-amber-600 dark:text-amber-400',
+            },
+          ].map(({ label, value, icon: Icon, iconBg, color }) => (
+            <Card key={label} className="hover:shadow-sm transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{label}</p>
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                    <Icon className={`w-3.5 h-3.5 ${color}`} />
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                {statsLoading
+                  ? <Skeleton className="h-6 w-24 mt-1" />
+                  : <p className={`text-lg font-black tabular-nums ${color}`}>{value}</p>
+                }
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         {/* Search + Refresh */}
         <div className="flex items-center gap-2">
@@ -161,10 +204,10 @@ export default function DealersPage() {
             variant="outline"
             size="icon"
             className="h-9 w-9 shrink-0"
-            onClick={load}
+            onClick={handleRefresh}
             title="Refresh"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading || statsLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 

@@ -468,7 +468,7 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
                 <Input placeholder="Optional notes…" value={form.notes}
                   onChange={e => set('notes', e.target.value)} />
               </div>
-              <div className="col-span-2 space-y-1.5">
+              {/* <div className="col-span-2 space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                   Brand / Manufacturer
                   {form.brand && (
@@ -479,7 +479,7 @@ export default function StockOutModal({ open, editRecord, onClose, onSuccess }: 
                 </Label>
                 <Input placeholder="e.g. Samsung, Apple…" value={form.brand}
                   onChange={e => set('brand', e.target.value)} />
-              </div>
+              </div> */}
             </div>
           </div>
 

@@ -435,7 +435,7 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
                 <Input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
               </div>
 
-              <div className="col-span-2 space-y-1.5">
+              {/* <div className="col-span-2 space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                   Brand / Manufacturer
                   {form.brand && (
@@ -446,7 +446,7 @@ export default function StockInModal({ open, editRecord, onClose, onSuccess }: P
                 </Label>
                 <Input placeholder="e.g. Samsung, Apple…" value={form.brand}
                   onChange={e => set('brand', e.target.value)} />
-              </div>
+              </div> */}
             </div>
           </div>
 

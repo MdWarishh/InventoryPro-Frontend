@@ -285,7 +285,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           {/* HSN + Barcode */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="hsnCode">HSN Code</Label>
               <Input
@@ -295,7 +295,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 onChange={(e) => set('hsnCode', e.target.value)}
               />
             </div>
-            {/* <div className="space-y-1.5">
+            <div className="space-y-1.5">
               <Label htmlFor="barcode">Barcode</Label>
               <Input
                 id="barcode"
@@ -303,8 +303,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                 value={form.barcode || ''}
                 onChange={(e) => set('barcode', e.target.value)}
               />
-            </div> */}
-          </div>
+            </div>
+          </div> */}
 
           {/* Supplier */}
           {dealers.length > 0 && (

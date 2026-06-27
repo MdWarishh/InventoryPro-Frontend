@@ -3,16 +3,15 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
-  ArrowLeft, Phone, Mail, MapPin, Hash, CreditCard,
+  ArrowLeft, Phone, Mail, MapPin, Hash,
   Building2, Package, TrendingUp, FileText,
-  Pencil, AlertCircle, StickyNote, ChevronRight,
+  Pencil, AlertCircle, StickyNote, ChevronRight, Wallet,
 } from 'lucide-react'
 import { dealersService } from '@/services/dealers.service'
 import type { Dealer, CreateDealerPayload } from '@/types/dealers.types'
 import DealerFormModal from '../_components/DealerFormModal'
 import StockSummaryTab from '../_components/StockSummaryTab'
 import StockOutTab from '../_components/StockOutTab'
-import PurchaseHistoryTab from '../_components/PurchaseHistoryTab'
 import InvoicesTab from '../_components/InvoicesTab'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,12 +19,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  RadialBarChart,
-  RadialBar,
-  PolarAngleAxis,
-  ResponsiveContainer,
-  Tooltip,
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
 } from 'recharts'
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
 export default function DealerDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -36,6 +34,10 @@ export default function DealerDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
+
+  // ✅ Naya: cost vs revenue chart ke liye
+  const [financials, setFinancials] = useState({ cost: 0, revenue: 0 })
+  const [financialsLoading, setFinancialsLoading] = useState(true)
 
   const load = async () => {
     try {
@@ -49,7 +51,25 @@ export default function DealerDetailPage() {
     }
   }
 
-  useEffect(() => { load() }, [id])
+  const loadFinancials = async () => {
+    try {
+      setFinancialsLoading(true)
+      const [stockInRes, stockOutRes] = await Promise.all([
+        dealersService.getStockInHistory(id as string, { limit: 1000 }),
+        dealersService.getStockOutHistory(id as string, { limit: 1000 }),
+      ])
+      setFinancials({
+        cost: stockInRes.data.totalAmount ?? 0,
+        revenue: stockOutRes.data.totalAmount ?? 0,
+      })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setFinancialsLoading(false)
+    }
+  }
+
+  useEffect(() => { load(); loadFinancials() }, [id])
 
   const handleUpdate = async (data: CreateDealerPayload) => {
     if (!dealer) return
@@ -75,8 +95,8 @@ export default function DealerDetailPage() {
             <Skeleton className="h-4 w-64" />
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-44 rounded-xl" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-44 rounded-xl" />)}
         </div>
         <Skeleton className="h-96 rounded-xl" />
       </div>
@@ -103,13 +123,13 @@ export default function DealerDetailPage() {
   const stockOuts = dealer._count?.stockOuts ?? 0
   const invoices  = dealer._count?.invoices  ?? 0
 
-  /* Radial chart — relative activity */
-  const maxVal = Math.max(stockIns, stockOuts, invoices, 1)
-  const radialData = [
-    { name: 'Invoices', value: Math.round((invoices  / maxVal) * 100), fill: 'hsl(262 83% 58%)' },
-    { name: 'Sales',    value: Math.round((stockOuts / maxVal) * 100), fill: 'hsl(142 71% 45%)' },
-    { name: 'Stock In', value: Math.round((stockIns  / maxVal) * 100), fill: 'hsl(221 83% 53%)' },
+  /* Profit donut data */
+  const profit = financials.revenue - financials.cost
+  const pieData = [
+    { name: 'Cost (Given)', value: financials.cost,    fill: 'hsl(221 83% 53%)' },
+    { name: 'Revenue (Sold)', value: financials.revenue, fill: 'hsl(142 71% 45%)' },
   ]
+  const hasFinancialData = financials.cost > 0 || financials.revenue > 0
 
   return (
     <>
@@ -168,8 +188,8 @@ export default function DealerDetailPage() {
           </Button>
         </div>
 
-        {/* ── Info Cards Grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* ── Info Cards Grid — Contact + Profit Chart (Bank card removed) ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Contact */}
           <Card>
@@ -185,86 +205,85 @@ export default function DealerDetailPage() {
               {!dealer.phone && !dealer.email && !dealer.address && (
                 <p className="text-xs text-muted-foreground italic">No contact info added</p>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Bank */}
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-5">
-              <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <CreditCard className="w-3 h-3" /> Bank Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-3">
-              {dealer.bankName    && <InfoRow icon={<CreditCard className="w-3.5 h-3.5 text-blue-500" />} label="Bank"    value={dealer.bankName} />}
-              {dealer.bankAccount && <InfoRow icon={<Hash className="w-3.5 h-3.5 text-blue-500" />}      label="Account" value={dealer.bankAccount} mono />}
-              {dealer.ifscCode    && <InfoRow icon={<Building2 className="w-3.5 h-3.5 text-blue-500" />} label="IFSC"    value={dealer.ifscCode} mono />}
-              {!dealer.bankName && !dealer.bankAccount && !dealer.ifscCode && (
-                <p className="text-xs text-muted-foreground italic">No bank details added</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Activity + RadialChart */}
-          <Card>
-            <CardHeader className="pb-0 pt-4 px-5">
-              <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <TrendingUp className="w-3 h-3" /> Activity Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              <div className="flex items-center gap-4">
-                {/* Radial Bar Chart */}
-                <div className="w-24 h-24 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadialBarChart
-                      cx="50%" cy="50%"
-                      innerRadius="28%" outerRadius="92%"
-                      data={radialData}
-                      startAngle={90} endAngle={-270}
-                    >
-                      <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                      <RadialBar
-                        dataKey="value"
-                        background={{ fill: 'hsl(var(--muted))' }}
-                        cornerRadius={3}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: 8,
-                          border: '1px solid hsl(var(--border))',
-                          background: 'hsl(var(--background))',
-                          fontSize: 11,
-                        }}
-                        formatter={(v: number, name: string) => [`${v}%`, name]}
-                      />
-                    </RadialBarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Legend */}
-                <div className="space-y-2.5 flex-1">
-                  {[
-                    { label: 'Stock In', value: stockIns,  dot: 'bg-blue-500' },
-                    { label: 'Sales',    value: stockOuts, dot: 'bg-emerald-500' },
-                    { label: 'Invoices', value: invoices,  dot: 'bg-violet-500' },
-                  ].map(({ label, value, dot }) => (
-                    <div key={label} className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-                        <span className="text-xs text-muted-foreground">{label}</span>
-                      </div>
-                      <span className="text-xs font-bold tabular-nums text-foreground">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Notes callout */}
+              {/* Notes callout moved here */}
               {dealer.notes && (
                 <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-100 dark:bg-amber-950/20 dark:border-amber-900">
                   <StickyNote className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">{dealer.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ✅ Profit Donut Chart (replaces Bank Details) */}
+          <Card>
+            <CardHeader className="pb-0 pt-4 px-5">
+              <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Wallet className="w-3 h-3" /> Revenue vs Cost
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              {financialsLoading ? (
+                <div className="flex justify-center items-center h-28">
+                  <Skeleton className="w-24 h-24 rounded-full" />
+                </div>
+              ) : !hasFinancialData ? (
+                <div className="h-28 flex items-center justify-center text-xs text-muted-foreground">
+                  No transactions yet
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%" cy="50%"
+                          innerRadius={28} outerRadius={42}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {pieData.map((entry, i) => (
+                            <Cell key={i} fill={entry.fill} stroke="hsl(var(--background))" strokeWidth={2} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: 8,
+                            border: '1px solid hsl(var(--border))',
+                            background: 'hsl(var(--background))',
+                            fontSize: 11,
+                          }}
+                          formatter={(v: number, name: string) => [fmt(v), name]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Legend + Profit */}
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full shrink-0 bg-blue-500" />
+                        <span className="text-xs text-muted-foreground">Cost</span>
+                      </div>
+                      <span className="text-xs font-bold tabular-nums text-foreground">{fmt(financials.cost)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full shrink-0 bg-emerald-500" />
+                        <span className="text-xs text-muted-foreground">Revenue</span>
+                      </div>
+                      <span className="text-xs font-bold tabular-nums text-foreground">{fmt(financials.revenue)}</span>
+                    </div>
+                    <div className="pt-1.5 border-t border-border flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-foreground">Profit</span>
+                      <span className={`text-xs font-bold tabular-nums ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                        {fmt(profit)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -278,10 +297,9 @@ export default function DealerDetailPage() {
             <div className="border-b bg-muted/30 px-2 overflow-x-auto">
               <TabsList className="h-auto bg-transparent p-0 gap-0 w-max">
                 {[
-                  { value: 'stock',     label: 'Stock Summary',    Icon: Package,    count: stockIns > 0 ? stockIns : null },
-                  { value: 'stockout',  label: 'Sales',            Icon: TrendingUp, count: null },
-                  { value: 'purchases', label: 'Purchase History', Icon: Building2,  count: null },
-                  { value: 'invoices',  label: 'Invoices',         Icon: FileText,   count: invoices > 0 ? invoices : null },
+                  { value: 'stock',     label: 'Stock Summary', Icon: Package,    count: stockIns > 0 ? stockIns : null },
+                  { value: 'stockout',  label: 'Sales',         Icon: TrendingUp, count: null },
+                  { value: 'invoices',  label: 'Invoices',      Icon: FileText,   count: invoices > 0 ? invoices : null },
                 ].map(({ value, label, Icon, count }) => (
                   <TabsTrigger
                     key={value}
@@ -307,9 +325,6 @@ export default function DealerDetailPage() {
               </TabsContent>
               <TabsContent value="stockout" className="mt-0">
                 <StockOutTab dealerId={id} />
-              </TabsContent>
-              <TabsContent value="purchases" className="mt-0">
-                <PurchaseHistoryTab dealerId={id} />
               </TabsContent>
               <TabsContent value="invoices" className="mt-0">
                 <InvoicesTab dealerId={id} />

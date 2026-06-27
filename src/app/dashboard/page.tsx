@@ -266,7 +266,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Sales This Month"
-          value={fmtINR(stats?.monthSales?.amount ?? 0)}
+          value={fmtFull(stats?.monthSales?.amount ?? 0)}
           sub={`${stats?.monthSales?.count ?? 0} transactions`}
           icon={<TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
           iconBg="bg-emerald-100 dark:bg-emerald-950/40"
@@ -288,59 +288,62 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Mini Stats Strip ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          {
-            label: "Today's Revenue",
-            value: fmtINR(stats?.todaySales?.amount ?? 0),
-            sub: `${stats?.todaySales?.count ?? 0} orders today`,
-            iconBg: 'bg-indigo-100 dark:bg-indigo-950/40',
-            icon: <TrendingUp className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />,
-            valueColor: 'text-indigo-600 dark:text-indigo-400',
-          },
-          {
-            label: 'Total Stock',
-            value: (stats?.totalStock ?? 0).toLocaleString('en-IN'),
-            sub: 'units across branches',
-            iconBg: 'bg-sky-100 dark:bg-sky-950/40',
-            icon: <Boxes className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />,
-            valueColor: 'text-sky-600 dark:text-sky-400',
-          },
-          {
-            label: 'Month Revenue',
-            value: fmtINR(stats?.monthSales?.amount ?? 0),
-            sub: `${stats?.monthSales?.count ?? 0} transactions`,
-            iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
-            icon: <BarChart2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
-            valueColor: 'text-emerald-600 dark:text-emerald-400',
-          },
-          {
-            label: 'Total Stock Value',
-            value: fmtINR(totalStockValue),
-            sub: 'purchase price × stock',
-            iconBg: 'bg-violet-100 dark:bg-violet-950/40',
-            icon: <Boxes className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />,
-            valueColor: 'text-violet-600 dark:text-violet-400',
-            loading: brandsLoading,
-          },
-        ].map((item) => (
-          <Card key={item.label} className="hover:shadow-sm transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{item.label}</p>
-                <div className={cn('w-6 h-6 rounded-lg flex items-center justify-center shrink-0', item.iconBg)}>
-                  {item.icon}
-                </div>
-              </div>
-              {(item.loading ?? statsLoading)
-                ? <Skeleton className="h-6 w-20 mt-1" />
-                : <p className={cn('text-lg font-black tabular-nums', item.valueColor)}>{item.value}</p>
-              }
-              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.sub}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+     {/* ── Mini Stats Strip ── */}
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+  {[
+    {
+      label: "Today's Revenue",
+      value: fmtFull(stats?.todaySales?.amount ?? 0),
+      sub: `${stats?.todaySales?.count ?? 0} orders today`,
+      iconBg: 'bg-indigo-100 dark:bg-indigo-950/40',
+      icon: <TrendingUp className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />,
+      valueColor: 'text-indigo-600 dark:text-indigo-400',
+    },
+    {
+      label: 'All Time Profit',
+      value: fmtFull(stats?.totalProfit ?? 0),
+      sub: `This month: ${fmtFull(stats?.monthProfit ?? 0)}`,
+      iconBg: (stats?.totalProfit ?? 0) >= 0 ? 'bg-sky-100 dark:bg-sky-950/40' : 'bg-destructive/10',
+      icon: (stats?.totalProfit ?? 0) >= 0
+        ? <TrendingUp className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+        : <ArrowDownRight className="w-3.5 h-3.5 text-destructive" />,
+      valueColor: (stats?.totalProfit ?? 0) >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-destructive',
+    },
+    {
+      label: 'Month Revenue',
+      value: fmtFull(stats?.monthSales?.amount ?? 0),
+      sub: `${stats?.monthSales?.count ?? 0} transactions`,
+      iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
+      icon: <BarChart2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
+      valueColor: 'text-emerald-600 dark:text-emerald-400',
+    },
+    {
+      label: 'Total Stock Value',
+      value: fmtFull(totalStockValue),
+      sub: 'purchase price × stock',
+      iconBg: 'bg-violet-100 dark:bg-violet-950/40',
+      icon: <Boxes className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />,
+      valueColor: 'text-violet-600 dark:text-violet-400',
+      loading: brandsLoading,
+    },
+  ].map((item) => (
+    <Card key={item.label} className="hover:shadow-sm transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{item.label}</p>
+          <div className={cn('w-6 h-6 rounded-lg flex items-center justify-center shrink-0', item.iconBg)}>
+            {item.icon}
+          </div>
+        </div>
+        {(item.loading ?? statsLoading)
+          ? <Skeleton className="h-6 w-20 mt-1" />
+          : <p className={cn('text-lg font-black tabular-nums', item.valueColor)}>{item.value}</p>
+        }
+        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.sub}</p>
+      </CardContent>
+    </Card>
+  ))}
+</div>
 
       {/* ── Charts Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -358,7 +361,7 @@ export default function DashboardPage() {
               </div>
               <div className="text-right shrink-0">
                 <p className="text-lg font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
-                  {fmtINR(salesReport?.summary?.totalRevenue ?? 0)}
+                  {fmtFull(salesReport?.summary?.totalRevenue ?? 0)}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {salesReport?.summary?.totalTransactions ?? 0} sales
@@ -393,7 +396,7 @@ export default function DashboardPage() {
                   <YAxis
                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                     axisLine={false} tickLine={false}
-                    tickFormatter={(v) => fmtINR(v)}
+                    tickFormatter={(v) => fmtFull(v)}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   <Area
@@ -616,7 +619,7 @@ export default function DashboardPage() {
                           {price > 0 && (
                             <>
                               <span className="opacity-30">·</span>
-                              <span className="tabular-nums">{fmtINR(price * item.quantity)}</span>
+                              <span className="tabular-nums">{fmtFull(price * item.quantity)}</span>
                             </>
                           )}
                         </p>

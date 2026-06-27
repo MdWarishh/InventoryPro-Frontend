@@ -9,6 +9,8 @@ import type {
   UpdateAttendanceSettingsPayload,
   GetAllAttendanceParams,
   GetUserAttendanceParams,
+  EditAttendancePayload,
+  MarkLeavePayload,
 } from '@/types/attendance.types'
 
 export const attendanceService = {
@@ -26,6 +28,12 @@ export const attendanceService = {
 
   checkOut: async (): Promise<Attendance> => {
     const { data } = await apiClient.post<ApiSuccess<Attendance>>('/attendance/check-out')
+    return data.data
+  },
+
+  // ── NEW: User — leave mark karo ─────────────────────────────────────────────
+  markLeave: async (payload: MarkLeavePayload): Promise<Attendance> => {
+    const { data } = await apiClient.post<ApiSuccess<Attendance>>('/attendance/leave', payload)
     return data.data
   },
 
@@ -59,6 +67,15 @@ export const attendanceService = {
 
   triggerAutoAbsent: async (): Promise<{ marked: number }> => {
     const { data } = await apiClient.post<ApiSuccess<{ marked: number }>>('/attendance/auto-absent')
+    return data.data
+  },
+
+  // ── NEW: Super Admin — attendance record edit karo ──────────────────────────
+  editAttendance: async (attendanceId: string, payload: EditAttendancePayload): Promise<Attendance> => {
+    const { data } = await apiClient.patch<ApiSuccess<Attendance>>(
+      `/attendance/${attendanceId}`,
+      payload,
+    )
     return data.data
   },
 }

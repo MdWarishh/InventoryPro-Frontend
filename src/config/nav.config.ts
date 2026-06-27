@@ -57,8 +57,6 @@ export const navItems: NavItem[] = [
   // 5. Invoices
   { label: 'Invoices', href: '/dashboard/invoices', icon: FileText },
 
-  // 6. Sales
-  { label: 'Sales', href: '/dashboard/sales', icon: SatelliteDish, module: 'SALES' },
 
   // 7. Expenses
   { label: 'Expenses', href: '/dashboard/expenses', icon: Wallet, module: 'EXPENSES' },
@@ -68,6 +66,9 @@ export const navItems: NavItem[] = [
 
   // 9. Attendance
   { label: 'Attendance', href: '/dashboard/attendance', icon: CalendarDays, module: 'ATTENDANCE' },
+
+    // 6. Sales
+  { label: 'Sales', href: '/dashboard/sales', icon: SatelliteDish, module: 'SALES' },
 
   // 10. Reports
   { label: 'Reports', href: '/dashboard/reports', icon: BarChart3, module: 'REPORTS' },

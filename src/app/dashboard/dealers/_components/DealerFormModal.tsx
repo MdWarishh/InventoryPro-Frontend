@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   User, Phone, Mail, MapPin, Building2,
-  CreditCard, FileText, Hash, Loader2,
+  FileText, Hash, Loader2,
 } from 'lucide-react'
 import type { Dealer, CreateDealerPayload } from '@/types/dealers.types'
 import {
@@ -212,26 +212,6 @@ export default function DealerFormModal({ open, onClose, onSubmit, dealer, loadi
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <Input value={form.gstNumber} onChange={set('gstNumber')} placeholder="07XXXXX1234X1ZX" className="pl-9 h-10 text-sm font-mono uppercase" />
-                </div>
-              </div>
-            </FormSection>
-
-            <Separator />
-
-            {/* Bank */}
-            <FormSection icon={<CreditCard className="w-3 h-3" />} label="Bank Details">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Bank Name</Label>
-                  <Input value={form.bankName} onChange={set('bankName')} placeholder="HDFC Bank" className="h-10 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">IFSC Code</Label>
-                  <Input value={form.ifscCode} onChange={set('ifscCode')} placeholder="HDFC0001234" className="h-10 text-sm font-mono uppercase" />
-                </div>
-                <div className="sm:col-span-2 space-y-1.5">
-                  <Label className="text-xs font-semibold">Account Number</Label>
-                  <Input value={form.bankAccount} onChange={set('bankAccount')} placeholder="XXXX XXXX XXXX" className="h-10 text-sm font-mono" />
                 </div>
               </div>
             </FormSection>

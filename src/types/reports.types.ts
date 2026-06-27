@@ -6,6 +6,7 @@ export interface User {
 }
 
 // Dashboard
+// Dashboard
 export interface DashboardStats {
   totalStock: number
   lowStockCount: number
@@ -14,6 +15,11 @@ export interface DashboardStats {
   totalProducts: number
   recentStockIns: RecentStock[]
   recentStockOuts: RecentStock[]
+  // ✅ Naye fields — profit calculation ke liye (backend se aa rahe hain)
+  totalRevenue: number
+  totalExpense: number
+  totalProfit: number
+  monthProfit: number
 }
 
 export interface RecentStock {

@@ -5,7 +5,8 @@ import type {
   CreateDealerPayload, UpdateDealerPayload,
   CreateDealerStockInPayload, CreateDealerStockOutPayload,
   CreateInvoicePayload, DealerFilters, HistoryFilters,
-  UnbilledStockProduct, UnbilledStockRes, MainInvoicesRes,
+  UnbilledStockProduct, UnbilledStockRes, MainInvoicesRes, DealersOverviewStatsRes,
+  AddHistoricalStockPayload, DealerHistoricalStock, HistoricalStockRes,
 } from '@/types/dealers.types'
 
 // ─── Query String Helper ──────────────────────────────────────────────────────
@@ -48,6 +49,11 @@ export const dealersService = {
   getAll: async (f: DealerFilters = {}) => {
     const { data } = await apiClient.get(`/dealers${qs(f)}`)
     return data as DealersListRes
+  },
+
+  getOverviewStats: async (branchId?: string) => {
+    const { data } = await apiClient.get(`/dealers/overview-stats${qs({ branchId })}`)
+    return data as DealersOverviewStatsRes
   },
 
   getById: async (id: string) => {
@@ -143,6 +149,25 @@ export const dealersService = {
   getMainInvoices: async (id: string, f: HistoryFilters = {}) => {
     const { data } = await apiClient.get(`/dealers/${id}/main-invoices${qs(f)}`)
     return data as MainInvoicesRes
+  },
+
+  // ── HISTORICAL STOCK ──────────────────────────────────────────────────────
+  // POST /dealers/:id/historical-stock
+  addHistoricalStock: async (id: string, d: AddHistoricalStockPayload) => {
+    const { data } = await apiClient.post(`/dealers/${id}/historical-stock`, d)
+    return data as { data: DealerHistoricalStock; message: string }
+  },
+
+  // GET /dealers/:id/historical-stock
+  getHistoricalStock: async (id: string, params: { type?: 'IN' | 'OUT'; page?: number; limit?: number } = {}) => {
+    const { data } = await apiClient.get(`/dealers/${id}/historical-stock${qs(params)}`)
+    return data as HistoricalStockRes
+  },
+
+  // DELETE /dealers/:id/historical-stock/:recordId
+  deleteHistoricalStock: async (id: string, recordId: string) => {
+    const { data } = await apiClient.delete(`/dealers/${id}/historical-stock/${recordId}`)
+    return data as { message: string }
   },
 }
 

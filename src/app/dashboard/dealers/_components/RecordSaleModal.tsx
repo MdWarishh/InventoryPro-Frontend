@@ -43,7 +43,10 @@ export default function RecordSaleModal({ open, onClose, onSubmit, dealerName, d
   const [loadingSerials, setLoadingSerials] = useState(false)
 
   const availableProducts = stockSummary.filter((s) => s.balance > 0)
-  const selectedSummary = stockSummary.find((s) => s.product.id === form.productId)
+  const getProductKey = (product: StockSummaryItem['product']) =>
+  product.id ?? `manual__${product.name}`
+const selectedSummary = stockSummary.find((s) => getProductKey(s.product) === form.productId)
+const isHistoricalManual = selectedSummary ? !selectedSummary.product.id : false
   const isSerialProduct = selectedSummary?.product.hasSerialNumbers ?? false
   const maxQty = selectedSummary?.balance ?? 0
   const effectiveQty = isSerialProduct ? selectedSerialIds.length : form.quantity
@@ -160,29 +163,29 @@ export default function RecordSaleModal({ open, onClose, onSubmit, dealerName, d
                 <Label className="text-xs font-semibold">
                   Product <span className="text-destructive">*</span>
                 </Label>
-                <Select
-                  value={form.productId}
-                  onValueChange={(v) => {
-                    const s = stockSummary.find((x) => x.product.id === v)
-                    setForm((f) => ({ ...f, productId: v, salePrice: s?.product.sellingPrice ?? 0, quantity: 1 }))
-                    setSelectedSerialIds([])
-                  }}
-                >
-                  <SelectTrigger className="h-10 text-sm">
-                    <SelectValue placeholder="Select a product…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableProducts.map(({ product, balance }) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        <span className="font-medium">{product.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">— {balance} units</span>
-                        {product.hasSerialNumbers && (
-                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-500 font-semibold border border-violet-100">S/N</span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <Select
+  value={form.productId}
+  onValueChange={(v) => {
+    const s = stockSummary.find((x) => getProductKey(x.product) === v)
+    setForm((f) => ({ ...f, productId: v, salePrice: s?.product.sellingPrice ?? 0, quantity: 1 }))
+    setSelectedSerialIds([])
+  }}
+>
+  <SelectContent>
+    {availableProducts.map(({ product, balance }) => {
+      const key = getProductKey(product)
+      return (
+        <SelectItem key={key} value={key}>
+          <span className="font-medium">{product.name}</span>
+          <span className="text-muted-foreground ml-2 text-xs">— {balance} units</span>
+          {product.hasSerialNumbers && (
+            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-500 font-semibold border border-violet-100">S/N</span>
+          )}
+        </SelectItem>
+      )
+    })}
+  </SelectContent>
+</Select>
 
                 {selectedSummary && (
                   <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-muted/50 border rounded-lg">

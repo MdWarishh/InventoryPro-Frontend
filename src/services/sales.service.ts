@@ -1,7 +1,7 @@
 import api from '@/lib/axios'
 import type {
   StockOut, StockOutsResponse, SalesFilters, CreateStockOutPayload,
-  MonthlyRevenue, YearlyRevenue, BreakdownData, SalesSummary,
+  UpdateStockOutPayload, MonthlyRevenue, YearlyRevenue, BreakdownData, SalesSummary,
 } from '@/types/sales.types'
 
 export type { StockOut, SalesSummary }
@@ -19,6 +19,19 @@ export const salesService = {
   create: async (payload: CreateStockOutPayload): Promise<StockOut> => {
     const { data } = await api.post('/stock/out', payload)
     return data.data as StockOut
+  },
+
+  // ── Edit / Delete ────────────────────────────────────────────────────────────
+  // NOTE: assumes backend exposes PUT/DELETE on /stock/out/:id alongside the
+  // existing POST /stock/out. If your backend uses a different path
+  // (e.g. /sales/:id), just change the two lines below.
+  update: async (id: string, payload: UpdateStockOutPayload): Promise<StockOut> => {
+    const { data } = await api.put(`/stock/out/${id}`, payload)
+    return data.data as StockOut
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/stock/out/${id}`)
   },
 
   // ── Analytics ──────────────────────────────────────────────────────────────
