@@ -97,6 +97,9 @@ Providing Better Hearing, Better Living 💙`
 
 // ── PDF Download ──────────────────────────────────────────────────────────────
 async function downloadInvoicePDF(invoiceId: string, invoiceNumber: string) {
+  if (typeof window === 'undefined') return 
+  
+  
   const invoice = await getInvoiceById(invoiceId)
 
   const container = document.createElement('div')

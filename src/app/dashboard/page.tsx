@@ -223,14 +223,14 @@ export default function DashboardPage() {
             {greeting},{' '}
             <span className="text-primary">{user?.name?.split(' ')[0]}</span> 👋
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
-            Here's what's happening with your inventory today
-            {user?.role && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-bold uppercase tracking-wide">
-                {user.role.replace(/_/g, ' ')}
-              </Badge>
-            )}
-          </p>
+         <div className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
+  Here's what's happening with your inventory today
+  {user?.role && (
+    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-bold uppercase tracking-wide">
+      {user.role.replace(/_/g, ' ')}
+    </Badge>
+  )}
+</div>
         </div>
         <Button
           variant="outline"
