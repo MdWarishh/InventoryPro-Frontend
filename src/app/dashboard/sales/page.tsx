@@ -213,13 +213,12 @@ export default function SalesPage() {
   }
 
   const handleDeleteClick = (sale: any) => {
-    setDeletingSale({
-      id: sale.id,
-      productName: sale.product?.name ?? 'this item',
-      quantity: sale.quantity,
-    })
-  }
-
+  setDeletingSale({
+    id: sale.id,
+    productName: sale.product?.name ?? sale.productName ?? 'this item',   // ✅ fallback
+    quantity: sale.quantity,
+  })
+}
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">

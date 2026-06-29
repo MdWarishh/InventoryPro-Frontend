@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 interface SaleItem {
   id: string
   productId: string
+  productName?: string | null 
   branchId?: string
   quantity: number
   sellingPrice?: number
@@ -21,7 +22,7 @@ interface SaleItem {
     name: string
     sku: string
     category?: { name: string; color?: string } | null
-  }
+  } | null   // ✅ product null ho sakta hai ab (manual product)
   dealer?: { name: string } | null
   serialNumbers?: { id: string; serialNumber: string }[]
 }
@@ -96,24 +97,25 @@ const catColor = sale.product?.category?.color || '#6366f1'
       <div className="hidden md:grid md:grid-cols-[2.6fr_1fr_1.1fr_1.1fr_1.3fr_1.3fr_0.9fr] gap-4 px-6 py-3.5 items-center border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors group">
 
         {/* Product */}
-        <div className="min-w-0">
-    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
-  {sale.product?.name ?? 'Unknown Product'}
-</p>
-<div className="flex items-center gap-2 mt-0.5 flex-wrap">
-  <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
-    {sale.product?.sku ?? 'N/A'}
-  </span>
-  {sale.product?.category && (
-    <span
-      className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-      style={{ backgroundColor: catColor + '18', color: catColor }}
-    >
-      {sale.product.category.name}
+       {/* Product */}
+<div className="min-w-0">
+  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+    {sale.product?.name ?? sale.productName ?? 'Unknown Product'}
+  </p>
+  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+    <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
+      {sale.product?.sku ?? 'N/A'}
     </span>
-  )}
+    {sale.product?.category && (
+      <span
+        className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+        style={{ backgroundColor: catColor + '18', color: catColor }}
+      >
+        {sale.product.category.name}
+      </span>
+    )}
+  </div>
 </div>
-        </div>
 
         {/* Qty */}
         <div>
@@ -150,22 +152,22 @@ const catColor = sale.product?.category?.color || '#6366f1'
       <div className="md:hidden px-4 py-4 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
-  {sale.product?.name ?? 'Unknown Product'}  {/* ← ye change karo */}
+        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+  {sale.product?.name ?? sale.productName ?? 'Unknown Product'}
 </p>
-            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
-    {sale.product?.sku ?? 'N/A'}  {/* ← ye change karo */}
+<div className="flex items-center gap-2 mt-0.5 flex-wrap">
+  <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
+    {sale.product?.sku ?? 'N/A'}
   </span>
   {sale.product?.category && (
-                <span
-                  className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                  style={{ backgroundColor: catColor + '18', color: catColor }}
-                >
-                  {sale.product.category.name}
-                </span>
-              )}
-            </div>
+    <span
+      className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+      style={{ backgroundColor: catColor + '18', color: catColor }}
+    >
+      {sale.product.category.name}
+    </span>
+  )}
+</div>
           </div>
           <div className="text-right shrink-0">
             <p className="text-sm font-bold text-gray-900 dark:text-gray-50 tabular-nums">{fmt(total)}</p>
