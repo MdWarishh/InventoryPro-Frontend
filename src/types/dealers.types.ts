@@ -153,13 +153,13 @@ export interface UnbilledStockRes {
 }
 
 // ─── NEW: Main invoices linked to dealer ──────────────────────────────────────
-// GET /dealers/:id/main-invoices response shape
-
 export interface MainInvoiceStockOut {
   id: string
   quantity: number
-  product: { name: string }
-  serialNumbers: { serialNumber: string }[]
+  sellingPrice: number
+  productName: string | null          // ✅ add kiya — manual items ka naam
+  product: { name: string; sku?: string } | null   // ✅ optional banaya
+  serialNumbers: { id: string; serialNumber: string }[]
 }
 
 export interface MainInvoice {

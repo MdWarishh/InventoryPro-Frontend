@@ -18,29 +18,39 @@ import {
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
+interface AvailableSerial {
+  id: string             // real UUID ya "hist_xxx_yyy" (manual)
+  serialNumber: string
+  status: string
+  productId?: string
+  branchId?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 interface LineItem {
-  productId: string
+  productId: string | null    // null = manual/historical free-text product
   productName: string
   sku: string
   quantity: number
   sellingPrice: number
   gstRate: number
   hasSerialNumbers: boolean
-  availableSerials: SerialNumber[]
+  availableSerials: AvailableSerial[]
   serialsLoading: boolean
   selectedSerialIds: string[]
   showSerials: boolean
-  // dealer invoice mode mein serials dealer ke assigned hain
-  isDealerSerial?: boolean
+  isDealerSerial?: boolean   // dealer mode mein serials dealer ke hain
+  isManualProduct?: boolean  // true = productId null, free-text product
 }
 
 const emptyItem = (): LineItem => ({
   productId: '', productName: '', sku: '',
-  quantity: 1, sellingPrice: 0, gstRate: 18,
+  quantity: 1, sellingPrice: 0, gstRate: 0,  // ✅ default 0, user set karega
   hasSerialNumbers: false,
   availableSerials: [], serialsLoading: false,
   selectedSerialIds: [], showSerials: false,
-  isDealerSerial: false,
+  isDealerSerial: false, isManualProduct: false,
 })
 
 const inputCls = `w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg
@@ -63,7 +73,6 @@ export default function CreateInvoicePage() {
   const [showDealerDrop,   setShowDealerDrop]   = useState(false)
   const [unbilledLoading,  setUnbilledLoading]  = useState(false)
 
-  // Dealer mode mein product search band rehta hai — sirf dealer ke products show honge
   const isDealerMode = !!selectedDealerId
 
   const [customerName,    setCustomerName]    = useState('')
@@ -77,18 +86,17 @@ export default function CreateInvoicePage() {
 
   const [items, setItems] = useState<LineItem[]>([emptyItem()])
 
-  // Product search state — sirf non-dealer mode mein use hota hai
   const [productSearch,  setProductSearch]  = useState<string[]>([''])
- const [productResults, setProductResults] = useState<ProductInStock[][]>([[]])
+  const [productResults, setProductResults] = useState<ProductInStock[][]>([[]])
   const [showDropdown,   setShowDropdown]   = useState<boolean[]>([false])
   const [dropLoading,    setDropLoading]    = useState<boolean[]>([false])
   const searchTimers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const [submitting, setSubmitting] = useState(false)
   const [error,      setError]      = useState('')
-const [modesLoading, setModesLoading] = useState(true)
-const [paymentModes, setPaymentModes] = useState<string[]>(['Cash'])
-const [paymentMode, setPaymentMode] = useState<string>('Cash')
+  const [modesLoading, setModesLoading] = useState(true)
+  const [paymentModes, setPaymentModes] = useState<string[]>(['Cash'])
+  const [paymentMode,  setPaymentMode]  = useState<string>('Cash')
 
   // Load dealers
   useEffect(() => {
@@ -115,17 +123,17 @@ const [paymentMode, setPaymentMode] = useState<string>('Cash')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerIdFromUrl])
 
-useEffect(() => {
-  settingsService.getSettings(user?.branchId ?? null)
-    .then(s => {
-      if ((s as any).customPaymentModes?.length) {
-        setPaymentModes((s as any).customPaymentModes)
-        setPaymentMode((s as any).customPaymentModes[0])
-      }
-    })
-    .catch(() => {})
-}, [user?.branchId])
-
+  useEffect(() => {
+    settingsService.getSettings(user?.branchId ?? null)
+      .then(s => {
+        if ((s as any).customPaymentModes?.length) {
+          setPaymentModes((s as any).customPaymentModes)
+          setPaymentMode((s as any).customPaymentModes[0])
+        }
+      })
+      .catch(() => {})
+      .finally(() => setModesLoading(false))
+  }, [user?.branchId])
 
   const prefillCustomerFromDealer = (d: Dealer) => {
     setCustomerName(d.name)
@@ -135,8 +143,7 @@ useEffect(() => {
     setCustomerGST(d.gstNumber ?? '')
   }
 
-  // Dealer ke unbilled products fetch karo aur items mein pre-fill karo
-  // Ye sirf dealer mode mein call hota hai
+  // ── Dealer unbilled stock fetch + items pre-fill ──────────────────────────
   const loadDealerUnbilledStock = async (dealerId: string) => {
     setUnbilledLoading(true)
     try {
@@ -144,7 +151,6 @@ useEffect(() => {
       const products = res?.data?.products ?? []
 
       if (!products.length) {
-        // Koi unbilled stock nahi — empty state
         setItems([emptyItem()])
         setProductSearch([''])
         setProductResults([[]])
@@ -153,30 +159,37 @@ useEffect(() => {
         return
       }
 
-      // Dealer ke UNBILLED serials wale products — pre-fill with all serials selected
-      const preFilledItems: LineItem[] = products.map((p: any) => ({
-        productId:         p.productId,
-        productName:       p.productName,
-        sku:               p.sku,
-        quantity:          0,          // = unbilled serials count
-        sellingPrice:      p.sellingPrice,
-        gstRate:           p.gstRate ?? 18,
-        hasSerialNumbers:  p.hasSerialNumbers,
-        // Dealer ke UNBILLED serials — sab pre-selected
-        selectedSerialIds: [],
-        availableSerials:  p.serials.map((s: any) => ({
-          id: s.id,
+      const preFilledItems: LineItem[] = products.map((p: any) => {
+        // ── Serials map karo — teen types aa sakte hain backend se ──
+        // 1. Normal TRANSFERRED:  { id: 'uuid', serialNumber: 'SN001', type: 'transferred' }
+        // 2. DEALER_HISTORICAL:   { id: 'uuid', serialNumber: 'SN002', type: 'dealer_historical' }
+        // 3. Manual hist_ prefix: { id: 'hist_xxx_SN003', serialNumber: 'SN003', type: 'manual' }
+        const mappedSerials: AvailableSerial[] = (p.serials ?? []).map((s: any) => ({
+          id: s.id,                    // backend se aaya ID — hist_ prefix ya real UUID
           serialNumber: s.serialNumber,
-          status: 'TRANSFERRED' as const,
-          productId: p.productId,
-          branchId: '',
-          createdAt: '',
-          updatedAt: '',
-        })),
-        serialsLoading: false,
-        showSerials: false, 
-        isDealerSerial: true,   // flag: ye serials dealer ke hain, branch ke nahi
-      }))
+          status: s.type === 'manual' ? 'MANUAL' : s.type === 'dealer_historical' ? 'DEALER_HISTORICAL' : 'TRANSFERRED',
+          productId: p.productId ?? undefined,
+        }))
+
+        const isManual = !p.productId  // productId null = manual/free-text product
+
+        return {
+          productId:        p.productId ?? null,
+          productName:      p.productName,
+          sku:              p.sku ?? '',
+          quantity:         0,
+          sellingPrice:     p.sellingPrice ?? 0,
+          // ✅ GST: backend se aaye gstRate use karo, warna 0
+          gstRate:          p.gstRate ?? 0,
+          hasSerialNumbers: p.hasSerialNumbers || mappedSerials.length > 0,
+          selectedSerialIds: [],
+          availableSerials:  mappedSerials,
+          serialsLoading:    false,
+          showSerials:       false,
+          isDealerSerial:    true,
+          isManualProduct:   isManual,
+        }
+      })
 
       setItems(preFilledItems)
       setProductSearch(preFilledItems.map(i => i.productName))
@@ -208,7 +221,6 @@ useEffect(() => {
     setCustomerEmail('')
     setCustomerAddress('')
     setCustomerGST('')
-    // Normal mode mein wapas — empty item with product search
     setItems([emptyItem()])
     setProductSearch([''])
     setProductResults([[]])
@@ -221,23 +233,27 @@ useEffect(() => {
     (d.phone ?? '').includes(dealerSearch)
   )
 
+  // ── Totals — gstRate 0 wale items GST contribute nahi karenge ────────────
   const subtotal  = items.reduce((s, it) => s + it.sellingPrice * it.quantity, 0)
-  const gstAmount = items.reduce((s, it) => s + (it.sellingPrice * it.quantity * it.gstRate) / 100, 0)
-  const total     = subtotal + gstAmount - discount
+  const gstAmount = items.reduce((s, it) => {
+    if (!it.gstRate || it.gstRate <= 0) return s
+    return s + (it.sellingPrice * it.quantity * it.gstRate) / 100
+  }, 0)
+  const total = subtotal + gstAmount - discount
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(n)
 
-  // ── Normal (non-dealer) mode ke liye product search ──────────────────────
- const fetchProducts = useCallback(async (query: string, idx: number) => {
-  setDropLoading(prev => { const n = [...prev]; n[idx] = true; return n })
-  try {
-   const res = await getProductsInStock({ search: query || undefined, branchId: user?.branchId ?? undefined })
-    setProductResults(prev => { const n = [...prev]; n[idx] = res ?? []; return n })
-  } catch {
-    setProductResults(prev => { const n = [...prev]; n[idx] = []; return n })
-  } finally {
-    setDropLoading(prev => { const n = [...prev]; n[idx] = false; return n })
-  }
-}, [user?.branchId])
+  // ── Product search (non-dealer mode) ─────────────────────────────────────
+  const fetchProducts = useCallback(async (query: string, idx: number) => {
+    setDropLoading(prev => { const n = [...prev]; n[idx] = true; return n })
+    try {
+      const res = await getProductsInStock({ search: query || undefined, branchId: user?.branchId ?? undefined })
+      setProductResults(prev => { const n = [...prev]; n[idx] = res ?? []; return n })
+    } catch {
+      setProductResults(prev => { const n = [...prev]; n[idx] = []; return n })
+    } finally {
+      setDropLoading(prev => { const n = [...prev]; n[idx] = false; return n })
+    }
+  }, [user?.branchId])
 
   const handleSearchChange = (idx: number, val: string) => {
     setProductSearch(prev => { const n = [...prev]; n[idx] = val; return n })
@@ -259,7 +275,6 @@ useEffect(() => {
     }, 200)
   }
 
-
   const selectProduct = async (idx: number, product: ProductInStock) => {
     setItems(prev => {
       const n = [...prev]
@@ -269,13 +284,15 @@ useEffect(() => {
         productName:       product.name,
         sku:               product.sku,
         sellingPrice:      product.sellingPrice ?? 0,
-        gstRate: product.gstRate ?? 18,
+        // ✅ DB se aaya actual gstRate use karo
+        gstRate:           product.gstRate ?? 0,
         hasSerialNumbers:  product.hasSerialNumbers,
         selectedSerialIds: [],
         availableSerials:  [],
         showSerials:       product.hasSerialNumbers,
         serialsLoading:    product.hasSerialNumbers,
         isDealerSerial:    false,
+        isManualProduct:   false,
       }
       return n
     })
@@ -284,7 +301,6 @@ useEffect(() => {
 
     if (product.hasSerialNumbers) {
       try {
-        // Customer invoice → sirf AVAILABLE branch serials (dealer ke TRANSFERRED nahi)
         const serials = await serialService.getAvailable(product.id, user?.branchId ?? undefined)
         setItems(prev => {
           const n = [...prev]
@@ -314,7 +330,6 @@ useEffect(() => {
     })
   }
 
-  // Dealer mode mein new row add nahi hota — sirf dealer ke products
   const addRow = () => {
     if (isDealerMode) return
     setItems(p => [...p, emptyItem()])
@@ -337,13 +352,31 @@ useEffect(() => {
     setItems(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n })
   }
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     setError('')
+
     if (!customerName.trim()) { setError('Customer name is required.'); return }
-    if (items.some(it => !it.productId)) { setError('Please select a product for all rows.'); return }
-    if (items.some(it => it.hasSerialNumbers && it.selectedSerialIds.length === 0)) {
-      setError('Select serial numbers for all serial-tracked products.'); return
+
+    // Validation — dealer mode mein manual products (productId null) allowed hain
+    for (const it of items) {
+      // Normal mode mein productId required
+      if (!isDealerMode && !it.productId) {
+        setError('Please select a product for all rows.')
+        return
+      }
+      // Dealer mode mein: productId ya productName dono mein se ek hona chahiye
+      if (isDealerMode && !it.productId && !it.productName) {
+        setError('Product name missing for one or more items.')
+        return
+      }
+      // Serial products mein selection required
+      if (it.hasSerialNumbers && it.selectedSerialIds.length === 0) {
+        setError(`Select serial numbers for "${it.productName}".`)
+        return
+      }
     }
+
     setSubmitting(true)
     try {
       const payload: CreateInvoicePayload = {
@@ -353,12 +386,14 @@ useEffect(() => {
         date, discount,
         notes: notes || undefined,
         paymentMode,
-        // Dealer mode mein dealerId pass karo — backend dealer invoice path use karega
         ...(selectedDealerId && { dealerId: selectedDealerId }),
         items: items.map(it => ({
-          productId:       it.productId,
+          // Manual product ke liye productId null bhejo — backend handle karega
+          productId:       it.productId || null,
+          productName:     it.productName,  
           quantity:        it.quantity,
           sellingPrice:    it.sellingPrice,
+          gstRate:         it.gstRate,
           serialNumberIds: it.selectedSerialIds.length ? it.selectedSerialIds : undefined,
         })),
       }
@@ -369,13 +404,6 @@ useEffect(() => {
       setSubmitting(false)
     }
   }
-
-  // const paymentOptions: { value: PaymentMode; label: string; icon: React.ReactNode }[] = [
-  //   { value: 'CASH', label: 'Cash',  icon: <Banknote size={15} /> },
-  //   { value: 'UPI',  label: 'UPI',   icon: <Smartphone size={15} /> },
-  //   { value: 'CARD', label: 'Card',  icon: <CreditCard size={15} /> },
-  // ]
-
 
   // ═══════════════════════════════════════════════════════════════════════════
   return (
@@ -510,7 +538,6 @@ useEffect(() => {
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Items</h2>
-              {/* Dealer mode mein info banner */}
               {isDealerMode && !unbilledLoading && (
                 <div className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-800">
                   <AlertCircle size={12} />
@@ -523,8 +550,7 @@ useEffect(() => {
               <div className="flex items-center gap-2 py-8 text-sm text-gray-400 justify-center">
                 <Loader2 size={16} className="animate-spin" /> Loading dealer's unbilled stock...
               </div>
-            ) : isDealerMode && items.every(i => !i.productId) ? (
-              // Dealer mode mein koi unbilled stock nahi
+            ) : isDealerMode && items.every(i => !i.productId && !i.productName) ? (
               <div className="py-10 text-center text-sm text-gray-400">
                 <p className="font-medium text-gray-500 dark:text-gray-400 mb-1">No unbilled stock</p>
                 <p className="text-xs">Is dealer ke paas koi unbilled stock nahi hai.</p>
@@ -539,24 +565,24 @@ useEffect(() => {
                       <div className="grid gap-3 p-3 items-start"
                         style={{ gridTemplateColumns: '1fr 70px 110px 70px 100px 36px' }}>
 
-                        {/* Product — dealer mode mein readonly */}
+                        {/* Product */}
                         <div>
                           <label className="block text-xs font-medium text-gray-400 mb-1">
                             Product
                             {item.isDealerSerial && (
                               <span className="ml-2 text-[10px] bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-full font-semibold">
-                                Dealer Stock
+                                {item.isManualProduct ? 'Manual Stock' : 'Dealer Stock'}
                               </span>
                             )}
                           </label>
 
-                          {isDealerMode && item.productId ? (
-                            // Dealer mode — product name readonly dikho
+                          {isDealerMode && (item.productId || item.productName) ? (
+                            // Dealer mode — readonly
                             <div className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
                               {item.productName}
                             </div>
                           ) : (
-                            // Normal mode — product search
+                            // Normal mode — search
                             <div className="relative">
                               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
                               <input
@@ -591,7 +617,7 @@ useEffect(() => {
                                           )}
                                         </div>
                                         <div className="text-xs text-gray-400 mt-0.5">
-                                          {p.sku} · ₹{fmt(p.sellingPrice ?? 0)} · GST {p.gstRate}%
+                                          {p.sku} · ₹{fmt(p.sellingPrice ?? 0)} · GST {p.gstRate ?? 0}%
                                         </div>
                                       </div>
                                     ))
@@ -610,7 +636,8 @@ useEffect(() => {
                           <label className="block text-xs font-medium text-gray-400 mb-1">Qty</label>
                           <input type="number" min={1}
                             value={item.quantity}
-                            disabled={item.hasSerialNumbers}
+                            // Serial products mein qty auto-set, manual products mein editable
+                            disabled={item.hasSerialNumbers && !item.isManualProduct}
                             onChange={e => updateItem(idx, 'quantity', Number(e.target.value))}
                             className={`${inputCls} text-center disabled:opacity-60 disabled:cursor-not-allowed`}
                           />
@@ -629,7 +656,7 @@ useEffect(() => {
                         {/* GST% */}
                         <div>
                           <label className="block text-xs font-medium text-gray-400 mb-1">GST%</label>
-                          <input type="number" min={0}
+                          <input type="number" min={0} max={100}
                             value={item.gstRate}
                             onChange={e => updateItem(idx, 'gstRate', Number(e.target.value))}
                             className={`${inputCls} text-center`}
@@ -644,7 +671,7 @@ useEffect(() => {
                           </div>
                         </div>
 
-                        {/* Remove — dealer mode mein bhi allow karo (partial billing) */}
+                        {/* Remove */}
                         <div className="pt-5">
                           <button onClick={() => removeRow(idx)} disabled={items.length === 1}
                             className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-30 transition-colors rounded">
@@ -654,7 +681,7 @@ useEffect(() => {
                       </div>
 
                       {/* Serial numbers */}
-                      {item.hasSerialNumbers && item.productId && (
+                      {item.hasSerialNumbers && (item.productId || item.isManualProduct) && (
                         <div className={`border-t ${item.isDealerSerial
                           ? 'border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/60 dark:bg-indigo-900/10'
                           : 'border-amber-100 dark:border-amber-900/30 bg-amber-50/60 dark:bg-amber-900/10'
@@ -693,24 +720,54 @@ useEffect(() => {
                               ) : item.availableSerials.length === 0 ? (
                                 <div className="py-3 text-xs text-gray-400">No available serial numbers.</div>
                               ) : (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                  {item.availableSerials.map(sn => {
-                                    const sel = item.selectedSerialIds.includes(sn.id)
-                                    return (
-                                      <button key={sn.id} onClick={() => toggleSerial(idx, sn.id)}
-                                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-all
-                                          ${sel
-                                            ? item.isDealerSerial
-                                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                              : 'bg-amber-600 border-amber-600 text-white shadow-sm'
-                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-indigo-400'
-                                          }`}
+                                <>
+                                  {/* Select All / Clear All */}
+                                  <div className="flex items-center gap-3 pb-2 pt-1">
+                                    <button
+                                      onClick={() => {
+                                        const allIds = item.availableSerials.map(s => s.id)
+                                        setItems(prev => {
+                                          const n = [...prev]
+                                          n[idx] = { ...n[idx], selectedSerialIds: allIds, quantity: allIds.length }
+                                          return n
+                                        })
+                                      }}
+                                      className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                                    >
+                                      Select All ({item.availableSerials.length})
+                                    </button>
+                                    {item.selectedSerialIds.length > 0 && (
+                                      <button
+                                        onClick={() => setItems(prev => {
+                                          const n = [...prev]
+                                          n[idx] = { ...n[idx], selectedSerialIds: [], quantity: 0 }
+                                          return n
+                                        })}
+                                        className="text-xs text-gray-400 hover:text-red-500"
                                       >
-                                        {sn.serialNumber}
+                                        Clear
                                       </button>
-                                    )
-                                  })}
-                                </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {item.availableSerials.map(sn => {
+                                      const sel = item.selectedSerialIds.includes(sn.id)
+                                      return (
+                                        <button key={sn.id} onClick={() => toggleSerial(idx, sn.id)}
+                                          className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border transition-all
+                                            ${sel
+                                              ? item.isDealerSerial
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                                : 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                                              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-indigo-400'
+                                            }`}
+                                        >
+                                          {sn.serialNumber}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                </>
                               )}
                             </div>
                           )}
@@ -720,7 +777,6 @@ useEffect(() => {
                   ))}
                 </div>
 
-                {/* Add Item — sirf normal mode mein */}
                 {!isDealerMode && (
                   <button onClick={addRow}
                     className="mt-4 flex items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 transition-colors">
@@ -746,16 +802,21 @@ useEffect(() => {
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>Subtotal</span><span>₹{fmt(subtotal)}</span>
                 </div>
-                {items.filter(it => it.productId && it.gstRate > 0).map((it, i) => (
-                  <div key={i} className="flex justify-between text-gray-500 dark:text-gray-500 text-xs pl-2">
-                    <span className="truncate max-w-[160px]">GST {it.gstRate}% · {it.productName || 'Item'}</span>
-                    <span>₹{fmt((it.sellingPrice * it.quantity * it.gstRate) / 100)}</span>
+                {/* ✅ Sirf wahi items GST row show karenge jinka gstRate > 0 */}
+                {items
+                  .filter(it => (it.productId || it.productName) && it.gstRate > 0)
+                  .map((it, i) => (
+                    <div key={i} className="flex justify-between text-gray-500 dark:text-gray-500 text-xs pl-2">
+                      <span className="truncate max-w-[160px]">GST {it.gstRate}% · {it.productName || 'Item'}</span>
+                      <span>₹{fmt((it.sellingPrice * it.quantity * it.gstRate) / 100)}</span>
+                    </div>
+                  ))}
+                {gstAmount > 0 && (
+                  <div className="flex justify-between text-gray-600 dark:text-gray-400 font-medium">
+                    <span>Total GST</span>
+                    <span className="text-orange-600 dark:text-orange-400">₹{fmt(gstAmount)}</span>
                   </div>
-                ))}
-                <div className="flex justify-between text-gray-600 dark:text-gray-400 font-medium">
-                  <span>Total GST</span>
-                  <span className="text-orange-600 dark:text-orange-400">₹{fmt(gstAmount)}</span>
-                </div>
+                )}
                 <div className="flex justify-between items-center text-gray-600 dark:text-gray-400">
                   <span>Discount</span>
                   <input type="number" min={0} step="0.01" value={discount}
@@ -769,23 +830,23 @@ useEffect(() => {
                 </div>
               </div>
 
-       <div>
-  <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Paid Via</p>
-  <div className="relative">
-    <select
-      value={paymentMode}
-      onChange={e => setPaymentMode(e.target.value)}
-      className="w-full appearance-none px-3 py-2.5 text-sm rounded-lg border border-gray-200
-        dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white
-        focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors cursor-pointer pr-8"
-    >
-      {paymentModes.map(mode => (
-        <option key={mode} value={mode}>{mode}</option>
-      ))}
-    </select>
-    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-  </div>
-</div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Paid Via</p>
+                <div className="relative">
+                  <select
+                    value={paymentMode}
+                    onChange={e => setPaymentMode(e.target.value)}
+                    className="w-full appearance-none px-3 py-2.5 text-sm rounded-lg border border-gray-200
+                      dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors cursor-pointer pr-8"
+                  >
+                    {paymentModes.map(mode => (
+                      <option key={mode} value={mode}>{mode}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
             </div>
           </div>
 

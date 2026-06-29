@@ -20,7 +20,8 @@ function WhatsAppIcon({ size = 14 }: { size?: number }) {
 interface StockOutSummary {
   id: string
   quantity: number
-  product: { name: string }
+  product: { name: string } | null
+  productName?: string | null
 }
 
 export interface InvoiceRow {
@@ -52,20 +53,21 @@ const fmtDate = (d: string) =>
 const fmtAmount = (n: number) =>
   '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(n)
 
+// ── itemsSummary fix ──
 function itemsSummary(stockOuts: StockOutSummary[]): string {
   if (!stockOuts?.length) return '—'
   const total = stockOuts.reduce((s, so) => s + so.quantity, 0)
+  const firstName = stockOuts[0].product?.name ?? stockOuts[0].productName ?? 'Unknown'
   if (stockOuts.length === 1)
-    return `${stockOuts[0].product.name} × ${stockOuts[0].quantity}`
-  return `${stockOuts[0].product.name} +${stockOuts.length - 1} more (${total} qty)`
+    return `${firstName} × ${stockOuts[0].quantity}`
+  return `${firstName} +${stockOuts.length - 1} more (${total} qty)`
 }
 
-// Model Name field ke liye — sab products comma se join
+// ── modelNamesSummary fix ──
 function modelNamesSummary(stockOuts: StockOutSummary[]): string {
   if (!stockOuts?.length) return '—'
-  return stockOuts.map(so => so.product.name).join(', ')
+  return stockOuts.map(so => so.product?.name ?? so.productName ?? 'Unknown').join(', ')
 }
-
 // ── WhatsApp ──────────────────────────────────────────────────────────────────
 function openWhatsApp(inv: InvoiceRow) {
   if (!inv.customerPhone) return
@@ -365,7 +367,7 @@ export default function InvoiceTable({
                 <td className="px-4 py-3.5">
                   <span
                     className="text-gray-500 dark:text-gray-400 text-xs truncate block max-w-[185px]"
-                    title={inv.stockOuts?.map(s => `${s.product.name} ×${s.quantity}`).join(', ')}
+                   title={inv.stockOuts?.map(s => `${s.product?.name ?? s.productName ?? 'Unknown'} ×${s.quantity}`).join(', ')}
                   >
                     {itemsSummary(inv.stockOuts)}
                   </span>

@@ -213,16 +213,16 @@ export default function InvoicePrintView({ invoice }: Props) {
             <tbody>
               {invoice.stockOuts.map((so, i) => {
                 const lineBase = so.sellingPrice * so.quantity
-                const gst = lineBase * ((so.product.gstRate ?? 0) / 100)
+              const gst = lineBase * ((so.product?.gstRate ?? 0) / 100)
                 const lineTotal = lineBase + gst
                 return (
                   <tr key={so.id} className="border-b border-gray-100 align-top">
                     <td className="px-4 py-3 text-gray-500 text-center">{i + 1}</td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-900">{so.product.name}</p>
-                      {so.product.category && (
-                        <p className="text-gray-400 mt-0.5">{so.product.category.name}</p>
-                      )}
+                   <p className="font-semibold text-gray-900">{so.product?.name ?? so.productName ?? ''}</p>
+                      {so.product?.category && (
+  <p className="text-gray-400 mt-0.5">{so.product.category.name}</p>
+)}
                       {so.serialNumbers?.length > 0 && (
                         <p className="text-gray-500 mt-0.5 font-mono">
                           {so.serialNumbers.map(sn => sn.serialNumber).join(' / ')}

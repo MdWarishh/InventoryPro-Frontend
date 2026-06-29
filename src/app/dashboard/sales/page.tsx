@@ -28,12 +28,6 @@ const LIMIT = 20
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
-const fmtK = (n: number) => {
-  if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(1)}Cr`
-  if (n >= 100_000) return `₹${(n / 100_000).toFixed(1)}L`
-  if (n >= 1_000) return `₹${(n / 1_000).toFixed(0)}K`
-  return `₹${n}`
-}
 
 // ── Treemap colors ────────────────────────────────────────────────────────────
 const TREEMAP_COLORS = [
@@ -71,7 +65,7 @@ const TreemapContent = ({ x, y, width, height, name, revenue, index }: any) => {
           </text>
           {height > 50 && (
             <text x={x + 10} y={y + 35} fill="rgba(255,255,255,0.8)" fontSize={10}>
-              {fmtK(revenue)}
+              {fmt(revenue)}
             </text>
           )}
         </>
@@ -275,7 +269,7 @@ export default function SalesPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Total Revenue"
-            value={fmtK(summary.totalRevenue)}
+            value={fmt(summary.totalRevenue)}
             sub={isFiltered ? 'filtered period' : 'all time'}
             icon={TrendingUp}
             color="bg-emerald-500"
@@ -297,7 +291,7 @@ export default function SalesPage() {
           />
           <StatCard
             label="Avg Order Value"
-            value={fmtK(summary.avgOrderValue)}
+            value={fmt(summary.avgOrderValue)}
             icon={BarChart3}
             color="bg-rose-500"
             loading={summaryLoading}
@@ -327,7 +321,7 @@ export default function SalesPage() {
                       axisLine={false} tickLine={false}
                     />
                     <YAxis
-                      tickFormatter={fmtK}
+                      tickFormatter={fmt}
                       tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                       axisLine={false} tickLine={false} width={55}
                     />
@@ -367,7 +361,7 @@ export default function SalesPage() {
                       axisLine={false} tickLine={false}
                     />
                     <YAxis
-                      tickFormatter={fmtK}
+                      tickFormatter={fmt}
                       tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                       axisLine={false} tickLine={false} width={55}
                     />
@@ -426,7 +420,7 @@ export default function SalesPage() {
           layout="vertical"
           margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
         >
-          <XAxis type="number" tickFormatter={fmtK} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+          <XAxis type="number" tickFormatter={fmt} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
           <YAxis
             type="category"
             dataKey="name"

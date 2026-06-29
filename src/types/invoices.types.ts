@@ -1,13 +1,14 @@
 export interface StockOut {
   id: string
-  productId: string          // ← ADD THIS (backend already returns it)
+  productId: string | null        // ✅ null allow karo
+  productName?: string | null     // ✅ add karo
   quantity: number
   sellingPrice: number
   product: {
     name: string
     gstRate?: number
     category?: { name: string } | null
-  }
+  } | null                        // ✅ optional banaya
   serialNumbers: { id: string; serialNumber: string }[]
 }
 
@@ -87,6 +88,16 @@ export interface PaginatedInvoices {
   }
 }
 
+// ── Invoice Item — normal + dealer manual products dono support karta hai ──
+export interface CreateInvoiceItem {
+  productId: string | null    // null = manual/historical free-text product (dealer mode only)
+  productName?: string        // manual products ke liye required, backend use karta hai
+  quantity: number
+  sellingPrice: number
+  gstRate?: number            // backend ko pass karo — 0 allowed
+  serialNumberIds?: string[]  // real UUIDs + hist_ prefix wale dono
+}
+
 export interface CreateInvoicePayload {
   branchId: string
   customerName: string
@@ -99,11 +110,7 @@ export interface CreateInvoicePayload {
   notes?: string
   terms?: string
   paymentMode?: string
-  dealerId?: string
-  items: {
-    productId: string
-    quantity: number
-    sellingPrice: number
-    serialNumberIds?: string[]
-  }[]
+  dealerId?: string           // dealer invoice flow ke liye
+  isDealerInvoice?: boolean
+  items: CreateInvoiceItem[]
 }

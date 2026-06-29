@@ -128,7 +128,7 @@ export default function EditInvoicePage() {
 
           // Fetch AVAILABLE serials for this product so user can change selection
           let availableSerials: SerialNumber[] = []
-          if (hasSerials) {
+        if (hasSerials && so.productId) {
             try {
               // getAvailable returns only AVAILABLE status serials
               const avail = await serialService.getAvailable(so.productId, user?.branchId ?? undefined)
@@ -139,7 +139,7 @@ export default function EditInvoicePage() {
                 id: sn.id,
                 serialNumber: sn.serialNumber,
                 status: 'SOLD' as const,  // currently sold — will be freed on update
-                productId: so.productId,
+                productId: so.productId ?? '', 
                 branchId: user?.branchId ?? '',
                 createdAt: '',
                 updatedAt: '',
@@ -153,7 +153,7 @@ export default function EditInvoicePage() {
                 id: sn.id,
                 serialNumber: sn.serialNumber,
                 status: 'SOLD' as const,
-                productId: so.productId,
+                productId: so.productId ?? '', 
                 branchId: user?.branchId ?? '',
                 createdAt: '',
                 updatedAt: '',
@@ -161,20 +161,20 @@ export default function EditInvoicePage() {
             }
           }
 
-          preFilledItems.push({
-            productId:         so.productId,
-            productName:       so.product.name,
-            sku:               '',           // SKU stockOut mein nahi hota, display ke liye blank
-            quantity:          so.quantity,
-            sellingPrice:      so.sellingPrice,
-            gstRate:           so.product.gstRate ?? 18,
-            hasSerialNumbers:  hasSerials,
-            availableSerials,
-            serialsLoading:    false,
-            selectedSerialIds: alreadySelectedIds,
-            showSerials:       hasSerials,
-          })
-          preFilledSearch.push(so.product.name)
+        preFilledItems.push({
+  productId:         so.productId ?? '',   // ✅ null → empty string
+  productName:       so.product?.name ?? so.productName ?? '',  // ✅ optional chaining
+  sku:               '',
+  quantity:          so.quantity,
+  sellingPrice:      so.sellingPrice,
+  gstRate:           so.product?.gstRate ?? 18,   // ✅ optional chaining
+  hasSerialNumbers:  hasSerials,
+  availableSerials,
+  serialsLoading:    false,
+  selectedSerialIds: alreadySelectedIds,
+  showSerials:       hasSerials,
+})
+          preFilledSearch.push(so.product?.name ?? so.productName ?? '')
         }
 
         setItems(preFilledItems)

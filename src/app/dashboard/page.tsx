@@ -264,18 +264,15 @@ export default function DashboardPage() {
           accent="border-l-amber-400"
           loading={statsLoading}
         />
-        <StatCard
-          title="Sales This Month"
-          value={fmtFull(stats?.monthSales?.amount ?? 0)}
-          sub={`${stats?.monthSales?.count ?? 0} transactions`}
-          icon={<TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
-          iconBg="bg-emerald-100 dark:bg-emerald-950/40"
-          accent="border-l-emerald-400"
-          trend={monthTrend !== null && monthTrend !== undefined
-            ? { value: monthTrend, label: 'vs last period' }
-            : undefined}
-          loading={statsLoading}
-        />
+      <StatCard
+  title="Sales This Month"
+  value={`${stats?.monthSales?.count ?? 0} sales`}
+  sub="invoices raised this month"
+  icon={<TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+  iconBg="bg-emerald-100 dark:bg-emerald-950/40"
+  accent="border-l-emerald-400"
+  loading={statsLoading}
+/>
         <StatCard
           title="Active Dealers"
           value={dealersData?.pagination?.total ?? '—'}
@@ -312,7 +309,7 @@ export default function DashboardPage() {
     {
       label: 'Month Revenue',
       value: fmtFull(stats?.monthSales?.amount ?? 0),
-      sub: `${stats?.monthSales?.count ?? 0} transactions`,
+     sub: `${stats?.monthSales?.count ?? 0} invoices this month`,
       iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
       icon: <BarChart2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
       valueColor: 'text-emerald-600 dark:text-emerald-400',
@@ -608,7 +605,9 @@ export default function DashboardPage() {
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{item.product.name}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">
+{item.product?.name ?? (item as any).productName ?? 'Unknown product'}
+</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                           <span className={cn(
                             'font-semibold',

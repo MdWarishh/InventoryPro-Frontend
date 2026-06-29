@@ -86,7 +86,7 @@ function SaleRow({
   onEdit: (sale: SaleItem) => void
   onDelete: (sale: SaleItem) => void
 }) {
-  const catColor = sale.product.category?.color || '#6366f1'
+const catColor = sale.product?.category?.color || '#6366f1'
   const sellingPrice = sale.sellingPrice ?? 0
   const total = sellingPrice * sale.quantity
 
@@ -97,20 +97,22 @@ function SaleRow({
 
         {/* Product */}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">
-            {sale.product.name}
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">{sale.product.sku}</span>
-            {sale.product.category && (
-              <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                style={{ backgroundColor: catColor + '18', color: catColor }}
-              >
-                {sale.product.category.name}
-              </span>
-            )}
-          </div>
+    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+  {sale.product?.name ?? 'Unknown Product'}
+</p>
+<div className="flex items-center gap-2 mt-0.5 flex-wrap">
+  <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
+    {sale.product?.sku ?? 'N/A'}
+  </span>
+  {sale.product?.category && (
+    <span
+      className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+      style={{ backgroundColor: catColor + '18', color: catColor }}
+    >
+      {sale.product.category.name}
+    </span>
+  )}
+</div>
         </div>
 
         {/* Qty */}
@@ -148,10 +150,14 @@ function SaleRow({
       <div className="md:hidden px-4 py-4 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{sale.product.name}</p>
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+  {sale.product?.name ?? 'Unknown Product'}  {/* ← ye change karo */}
+</p>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">{sale.product.sku}</span>
-              {sale.product.category && (
+              <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
+    {sale.product?.sku ?? 'N/A'}  {/* ← ye change karo */}
+  </span>
+  {sale.product?.category && (
                 <span
                   className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
                   style={{ backgroundColor: catColor + '18', color: catColor }}

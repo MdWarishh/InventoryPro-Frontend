@@ -51,23 +51,32 @@ export default function DealerDetailPage() {
     }
   }
 
-  const loadFinancials = async () => {
-    try {
-      setFinancialsLoading(true)
-      const [stockInRes, stockOutRes] = await Promise.all([
-        dealersService.getStockInHistory(id as string, { limit: 1000 }),
-        dealersService.getStockOutHistory(id as string, { limit: 1000 }),
-      ])
-      setFinancials({
-        cost: stockInRes.data.totalAmount ?? 0,
-        revenue: stockOutRes.data.totalAmount ?? 0,
-      })
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setFinancialsLoading(false)
-    }
+ const loadFinancials = async () => {
+  try {
+    setFinancialsLoading(true)
+    const [stockInRes, stockOutRes, mainInvoicesRes] = await Promise.all([
+      dealersService.getStockInHistory(id as string, { limit: 1000 }),
+      dealersService.getStockOutHistory(id as string, { limit: 1000 }),
+      dealersService.getMainInvoices(id as string, { limit: 1000 }),
+    ])
+
+    // ✅ Direct "Record Sale" revenue (DealerStockOut table)
+    const directRevenue = stockOutRes.data.totalAmount ?? 0
+
+    // ✅ Invoice ke through hui revenue (StockOut linked to Invoice — manual + normal items)
+    // mainInvoicesRes.data.totalAmount already invoice.totalAmount ka sum hai
+    const invoiceRevenue = mainInvoicesRes.data.totalAmount ?? 0
+
+    setFinancials({
+      cost: stockInRes.data.totalAmount ?? 0,
+      revenue: directRevenue + invoiceRevenue,
+    })
+  } catch (e) {
+    console.error(e)
+  } finally {
+    setFinancialsLoading(false)
   }
+}
 
   useEffect(() => { load(); loadFinancials() }, [id])
 

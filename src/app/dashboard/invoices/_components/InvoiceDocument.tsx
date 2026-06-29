@@ -168,7 +168,7 @@ export default function InvoiceDocument({ invoice }: Props) {
                     <td style={{ padding: '7px 10px', verticalAlign: 'top',
                       color: '#555', borderRight: ID }}>{idx + 1}</td>
                     <td style={{ padding: '7px 10px', verticalAlign: 'top', borderRight: ID }}>
-                      <div style={{ fontWeight: 500 }}>{so.product.name}</div>
+                   <div style={{ fontWeight: 500 }}>{so.product?.name ?? so.productName ?? ''}</div>
                       {serials && (
                         <div style={{ color: '#666', fontSize: '10px', marginTop: '2px' }}>{serials}</div>
                       )}
