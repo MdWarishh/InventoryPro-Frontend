@@ -7,6 +7,7 @@ import type {
   CreateInvoicePayload, DealerFilters, HistoryFilters,
   UnbilledStockProduct, UnbilledStockRes, MainInvoicesRes, DealersOverviewStatsRes,
   AddHistoricalStockPayload, DealerHistoricalStock, HistoricalStockRes,
+  AssignedProductsRes,
 } from '@/types/dealers.types'
 
 // ─── Query String Helper ──────────────────────────────────────────────────────
@@ -152,6 +153,11 @@ export const dealersService = {
     const { data } = await apiClient.get(`/dealers/${id}/unbilled-stock`)
     return data as UnbilledStockRes
   },
+
+ getAssignedProducts: async (dealerId: string) => {
+  const { data } = await apiClient.get(`/dealers/${dealerId}/assigned-products`)
+  return data as AssignedProductsRes
+},
 
   // ── NEW: Main invoices linked to dealer (Invoice model) ─────────────────
   // GET /dealers/:id/main-invoices

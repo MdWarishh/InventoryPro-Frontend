@@ -10,12 +10,13 @@ import { dealersService } from '@/services/dealers.service'
 import { useAuthStore } from '@/store/auth.store'
 import type { ProductInStock } from '@/services/stock-transfer.service'
 import type { SerialNumber } from '@/types/serial.types'
-import type { Dealer } from '@/types/dealers.types'
+import type { AssignedProduct, Dealer } from '@/types/dealers.types'
 import settingsService from '@/services/settings.service'
 import {
   Plus, Trash2, Search, ChevronLeft, Loader2, X, Hash,
   ChevronDown, ChevronUp, Building2, CheckCircle2, AlertCircle,
 } from 'lucide-react'
+import AddProductPicker from '../_components/AddProductPicker'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface AvailableSerial {
@@ -72,7 +73,8 @@ export default function CreateInvoicePage() {
   const [dealerSearch,     setDealerSearch]      = useState('')
   const [showDealerDrop,   setShowDealerDrop]   = useState(false)
   const [unbilledLoading,  setUnbilledLoading]  = useState(false)
-
+  const [assignedProducts, setAssignedProducts] = useState<AssignedProduct[]>([])
+const [showProductPicker, setShowProductPicker] = useState(false)
   const isDealerMode = !!selectedDealerId
 
   const [customerName,    setCustomerName]    = useState('')
@@ -117,7 +119,7 @@ export default function CreateInvoicePage() {
         setSelectedDealerId(d.id)
         setDealerSearch(d.name)
         prefillCustomerFromDealer(d)
-        loadDealerUnbilledStock(d.id)
+        loadDealerProducts(d.id)
       })
       .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,64 +146,22 @@ export default function CreateInvoicePage() {
   }
 
   // ── Dealer unbilled stock fetch + items pre-fill ──────────────────────────
-  const loadDealerUnbilledStock = async (dealerId: string) => {
-    setUnbilledLoading(true)
-    try {
-      const res = await dealersService.getUnbilledStock(dealerId)
-      const products = res?.data?.products ?? []
-
-      if (!products.length) {
-        setItems([emptyItem()])
-        setProductSearch([''])
-        setProductResults([[]])
-        setShowDropdown([false])
-        setDropLoading([false])
-        return
-      }
-
-      const preFilledItems: LineItem[] = products.map((p: any) => {
-        // ── Serials map karo — teen types aa sakte hain backend se ──
-        // 1. Normal TRANSFERRED:  { id: 'uuid', serialNumber: 'SN001', type: 'transferred' }
-        // 2. DEALER_HISTORICAL:   { id: 'uuid', serialNumber: 'SN002', type: 'dealer_historical' }
-        // 3. Manual hist_ prefix: { id: 'hist_xxx_SN003', serialNumber: 'SN003', type: 'manual' }
-        const mappedSerials: AvailableSerial[] = (p.serials ?? []).map((s: any) => ({
-          id: s.id,                    // backend se aaya ID — hist_ prefix ya real UUID
-          serialNumber: s.serialNumber,
-          status: s.type === 'manual' ? 'MANUAL' : s.type === 'dealer_historical' ? 'DEALER_HISTORICAL' : 'TRANSFERRED',
-          productId: p.productId ?? undefined,
-        }))
-
-        const isManual = !p.productId  // productId null = manual/free-text product
-
-        return {
-          productId:        p.productId ?? null,
-          productName:      p.productName,
-          sku:              p.sku ?? '',
-          quantity:         0,
-          sellingPrice:     p.sellingPrice ?? 0,
-          // ✅ GST: backend se aaye gstRate use karo, warna 0
-          gstRate:          p.gstRate ?? 0,
-          hasSerialNumbers: p.hasSerialNumbers || mappedSerials.length > 0,
-          selectedSerialIds: [],
-          availableSerials:  mappedSerials,
-          serialsLoading:    false,
-          showSerials:       false,
-          isDealerSerial:    true,
-          isManualProduct:   isManual,
-        }
-      })
-
-      setItems(preFilledItems)
-      setProductSearch(preFilledItems.map(i => i.productName))
-      setProductResults(preFilledItems.map(() => []))
-      setShowDropdown(preFilledItems.map(() => false))
-      setDropLoading(preFilledItems.map(() => false))
-    } catch {
-      // silently fail
-    } finally {
-      setUnbilledLoading(false)
-    }
+ const loadDealerProducts = async (dealerId: string) => {
+  setUnbilledLoading(true)
+  try {
+    const res = await dealersService.getAssignedProducts(dealerId)
+    setAssignedProducts(res?.data?.products ?? [])
+  } catch {
+    setAssignedProducts([])
+  } finally {
+    setUnbilledLoading(false)
   }
+  setItems([])
+  setProductSearch([])
+  setProductResults([])
+  setShowDropdown([])
+  setDropLoading([])
+}
 
   const handleSelectDealer = (dealer: Dealer) => {
     setSelectedDealer(dealer)
@@ -209,7 +169,7 @@ export default function CreateInvoicePage() {
     setDealerSearch(dealer.name)
     setShowDealerDrop(false)
     prefillCustomerFromDealer(dealer)
-    loadDealerUnbilledStock(dealer.id)
+   loadDealerProducts(dealer.id)
   }
 
   const clearDealer = () => {
@@ -330,14 +290,50 @@ export default function CreateInvoicePage() {
     })
   }
 
-  const addRow = () => {
-    if (isDealerMode) return
-    setItems(p => [...p, emptyItem()])
-    setProductSearch(p => [...p, ''])
-    setProductResults(p => [...p, []])
-    setShowDropdown(p => [...p, false])
-    setDropLoading(p => [...p, false])
+  const handleAddProductFromPicker = (p: AssignedProduct) => {
+  const mappedSerials: AvailableSerial[] = (p.serials ?? [])
+    .filter(s => !s.billed)
+    .map(s => ({
+      id: s.id,
+      serialNumber: s.serialNumber,
+      status: s.type === 'manual' ? 'MANUAL' : s.type === 'dealer_historical' ? 'DEALER_HISTORICAL' : 'TRANSFERRED',
+      productId: p.productId ?? undefined,
+    }))
+
+  const newItem: LineItem = {
+    productId: p.productId ?? null,
+    productName: p.productName,
+    sku: p.sku ?? '',
+    quantity: p.hasSerialNumbers ? 0 : 1,
+    sellingPrice: p.sellingPrice ?? 0,
+    gstRate: p.gstRate ?? 0,
+    hasSerialNumbers: p.hasSerialNumbers || mappedSerials.length > 0,
+    selectedSerialIds: [],
+    availableSerials: mappedSerials,
+    serialsLoading: false,
+    showSerials: false,
+    isDealerSerial: true,
+    isManualProduct: !p.productId,
   }
+
+  setItems(prev => [...prev, newItem])
+  setProductSearch(prev => [...prev, p.productName])
+  setProductResults(prev => [...prev, []])
+  setShowDropdown(prev => [...prev, false])
+  setDropLoading(prev => [...prev, false])
+}
+
+const addRow = () => {
+  if (isDealerMode) {
+    setShowProductPicker(true)
+    return
+  }
+  setItems(p => [...p, emptyItem()])
+  setProductSearch(p => [...p, ''])
+  setProductResults(p => [...p, []])
+  setShowDropdown(p => [...p, false])
+  setDropLoading(p => [...p, false])
+}
 
   const removeRow = (idx: number) => {
     if (items.length === 1) return
@@ -349,8 +345,28 @@ export default function CreateInvoicePage() {
   }
 
   const updateItem = (idx: number, field: keyof LineItem, val: number) => {
-    setItems(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n })
-  }
+  setItems(prev => {
+    const n = [...prev]
+    const item: any = { ...n[idx], [field]: val }
+
+    if (field === 'quantity' && item.hasSerialNumbers && !item.isManualProduct) {
+      const qty = Math.max(0, Math.floor(val))
+      if (item.selectedSerialIds.length > qty) {
+        item.selectedSerialIds = item.selectedSerialIds.slice(0, qty)
+      } else if (item.selectedSerialIds.length < qty) {
+        const remaining = qty - item.selectedSerialIds.length
+        const unselected = item.availableSerials
+          .filter((s: AvailableSerial) => !item.selectedSerialIds.includes(s.id))
+          .slice(0, remaining)
+          .map((s: AvailableSerial) => s.id)
+        item.selectedSerialIds = [...item.selectedSerialIds, ...unselected]
+      }
+    }
+
+    n[idx] = item
+    return n
+  })
+}
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -535,29 +551,28 @@ export default function CreateInvoicePage() {
           </div>
 
           {/* Items */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Items</h2>
-              {isDealerMode && !unbilledLoading && (
-                <div className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                  <AlertCircle size={12} />
-                  Sirf dealer ke unbilled products show ho rahe hain
-                </div>
-              )}
-            </div>
+        {/* Items */}
+<div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Items</h2>
+  </div>
 
-            {unbilledLoading ? (
-              <div className="flex items-center gap-2 py-8 text-sm text-gray-400 justify-center">
-                <Loader2 size={16} className="animate-spin" /> Loading dealer's unbilled stock...
-              </div>
-            ) : isDealerMode && items.every(i => !i.productId && !i.productName) ? (
-              <div className="py-10 text-center text-sm text-gray-400">
-                <p className="font-medium text-gray-500 dark:text-gray-400 mb-1">No unbilled stock</p>
-                <p className="text-xs">Is dealer ke paas koi unbilled stock nahi hai.</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-3">
+  {unbilledLoading ? (
+    <div className="flex items-center gap-2 py-8 text-sm text-gray-400 justify-center">
+      <Loader2 size={16} className="animate-spin" /> Loading dealer's products...
+    </div>
+  ) : isDealerMode && items.length === 0 ? (
+    <div className="py-10 text-center text-sm text-gray-400">
+      <p className="font-medium text-gray-500 dark:text-gray-400 mb-1">Koi product add nahi hua</p>
+      <p className="text-xs mb-3">Neeche "Add Product" se dealer ka koi bhi product select karo.</p>
+      <button onClick={() => setShowProductPicker(true)}
+        className="inline-flex items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium">
+        <Plus size={15} /> Add Product
+      </button>
+    </div>
+  ) : (
+    <>
+     <div className="space-y-3">
                   {items.map((item, idx) => (
                     <div key={idx} className="border border-gray-100 dark:border-gray-800 rounded-xl overflow-visible">
 
@@ -777,15 +792,23 @@ export default function CreateInvoicePage() {
                   ))}
                 </div>
 
-                {!isDealerMode && (
-                  <button onClick={addRow}
-                    className="mt-4 flex items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 transition-colors">
-                    <Plus size={15} /> Add Item
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+      <button onClick={addRow}
+        className="mt-4 flex items-center gap-1.5 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 transition-colors">
+        <Plus size={15} /> {isDealerMode ? 'Add Product' : 'Add Item'}
+      </button>
+    </>
+  )}
+
+  {/* ✅ Picker BAHAR — ternary ke baad, hamesha render hoga jab showProductPicker true ho */}
+  {showProductPicker && (
+    <AddProductPicker
+      products={assignedProducts}
+      alreadyAddedKeys={new Set(items.map(i => i.productId || i.productName))}
+      onSelect={handleAddProductFromPicker}
+      onClose={() => setShowProductPicker(false)}
+    />
+  )}
+</div>
 
           {/* Notes + Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

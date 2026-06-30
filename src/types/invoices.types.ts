@@ -4,6 +4,7 @@ export interface StockOut {
   productName?: string | null     // ✅ add karo
   quantity: number
   sellingPrice: number
+  gstRate?: number   
   product: {
     name: string
     gstRate?: number
@@ -61,6 +62,12 @@ export interface Invoice {
   paymentMode?: string
   stockOuts: StockOut[]
   dealerId?: string
+  dealerSerials?: {
+    id: string
+    serialNumber: string
+    productId: string | null
+    historicalStockId: string | null
+  }[]
   dealer?: {
     id: string
     name: string

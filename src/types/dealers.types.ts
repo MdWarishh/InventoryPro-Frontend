@@ -312,3 +312,30 @@ export interface CreateSalesReturnPayload {
   date?: string
   productName?: string   // ✅ ye bhi add karo
 }
+
+export interface AssignedProductSerial {
+  id: string
+  serialNumber: string
+  type: 'transferred' | 'dealer_historical' | 'manual'
+  billed?: boolean
+  historicalStockId?: string
+}
+
+export interface AssignedProduct {
+  type: 'inventory' | 'historical_linked' | 'manual'
+  productId: string | null
+  productName: string
+  sku: string | null
+  sellingPrice: number
+  gstRate: number
+  hasSerialNumbers: boolean
+  quantity: number
+  serials: AssignedProductSerial[]
+}
+
+export interface AssignedProductsRes {
+  data: {
+    dealer: Pick<Dealer, 'id' | 'name' | 'phone' | 'email' | 'address' | 'gstNumber'>
+    products: AssignedProduct[]
+  }
+}

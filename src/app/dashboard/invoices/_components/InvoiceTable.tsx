@@ -167,7 +167,6 @@ function ActionDropdown({ inv, onDelete, isDeleting, onView, onEdit }: DropdownP
   const [open,        setOpen]        = useState(false)
   const [downloading, setDownloading] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const isDealerInv = !!inv.dealerId
 
   useEffect(() => {
     if (!open) return
@@ -255,19 +254,17 @@ function ActionDropdown({ inv, onDelete, isDeleting, onView, onEdit }: DropdownP
             {downloading ? 'Downloading...' : 'Download PDF'}
           </button>
 
-          {!isDealerInv && (
-            <button
-              onClick={() => { setOpen(false); onEdit() }}
-              className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm
-                text-gray-700 dark:text-gray-300
-                hover:bg-amber-50 dark:hover:bg-amber-900/20
-                hover:text-amber-600 dark:hover:text-amber-400
-                transition-colors"
-            >
-              <Pencil size={13} className="shrink-0" />
-              Edit Invoice
-            </button>
-          )}
+          <button
+            onClick={() => { setOpen(false); onEdit() }}
+            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm
+              text-gray-700 dark:text-gray-300
+              hover:bg-amber-50 dark:hover:bg-amber-900/20
+              hover:text-amber-600 dark:hover:text-amber-400
+              transition-colors"
+          >
+            <Pencil size={13} className="shrink-0" />
+            Edit Invoice
+          </button>
 
           <div className="border-t border-gray-100 dark:border-gray-800 my-0.5" />
 
